@@ -1,0 +1,13 @@
+<!-- howdy/templates/next-page.html -->
+<!DOCTYPE html>
+{% extends 'base.html' %}
+
+{% block content %}
+        <div class ="page-body">
+        <form action="{{ url }}" method="post">
+          {% csrf_token %}
+          {{ form }}
+          <input type="submit" value="Submit">
+        </form>
+      </div>
+{% endblock %}

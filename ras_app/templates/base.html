@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+{% load staticfiles %}
+<html>
+    <head>
+      <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+      <link rel="stylesheet" href="{% static "css/ras.css" %}">
+        <meta charset="utf-8">
+        <title>Access List</title>
+    </head>
+    <body>
+      	<div class ="page-header">
+        <h1>Remote Access Service</h1>
+      </div>
+
+            {% block content %}
+            {% endblock %}
+        <div class ="page-footer">
+        		<h5><a href="/admin">WebOps ___ </a></h5>
+        	</div>
+    </body>
+</html>
