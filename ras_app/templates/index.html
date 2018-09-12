@@ -1,25 +1,11 @@
 <!-- howdy/templates/next-page.html -->
 <!DOCTYPE html>
-{% load staticfiles %}
-<html>
-    <head>
-      <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
-	     <link rel="stylesheet" href="{% static "css/ras.css" %}">
-        <meta charset="utf-8">
-        <title>RAS</title>
-    </head>
-    <body>
-      	<div class ="page-header">
-        <h1>RAS</h1>
+{% extends 'base.html' %}
+
+{% block content %}
+        <div class ="page-body">
+          <body>
+              <h1>Welcome!</h1>
+          </body>
       </div>
-      <div class ="page-body">
-        <form action="/landing-page/" method="post">
-          {% csrf_token %}
-          {{ form }}
-          <input type="submit" value="Submit">
-        </form>
-      </div>
-        <div class ="page-footer">
-        <h5><a href="/admin">WebOps ___ </a></h5>
-    </body>
-</html>
+{% endblock %}

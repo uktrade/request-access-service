@@ -14,15 +14,12 @@ def test(request):
         form = NameForm(request.POST)
         # check whether it's valid:
         if form.is_valid():
-            # process the data in form.cleaned_data as required
-            # ...
             # redirect to a new URL:
             params = form.cleaned_data
 
             #return HttpResponseRedirect('/next-page/',) '?' + urlencode(params)
             return redirect('/next-page/' + '?' + urlencode(params))
 
-    # if a GET (or any other method) we'll create a blank form
     else:
         form = NameForm()
 
@@ -39,21 +36,18 @@ def next_page(request):
 
 def landing_page(request):
     if request.method == 'POST':
-        # create a form instance and populate it with data from the request:
         form = UserForm(request.POST)
         # check whether it's valid:
         if form.is_valid():
-            # process the data in form.cleaned_data as required
+
             #import pdb; pdb.set_trace()
             #print (form.cleaned_data['needs_access'])
-            # redirect to a new URLself
             context = form.cleaned_data
             if form.cleaned_data['needs_access'] == 'behalf':
                 return redirect('/user-details-behalf/' + '?' + urlencode(context))
             else:
                 return redirect('/user-details/' + '?' + urlencode(context))
 
-    # if a GET (or any other method) we'll create a blank form
     else:
         form = UserForm()
 
@@ -66,16 +60,9 @@ def user_details(request):
     #import pdb; pdb.set_trace()
 
     if request.method == 'POST':
-        # create a form instance and populate it with data from the request:
-        #import pdb; pdb.set_trace()
         form = UserDetailsForm(request.POST)
         # check whether it's valid:
         if form.is_valid():
-            # process the data in form.cleaned_data as required
-            #import pdb; pdb.set_trace()
-            #print (form.cleaned_data['needs_access'])
-            # redirect to a new URLself
-
             context = {'your_name': 'Jayesh'}
 
             return redirect('/access-list/' + '?' + urlencode(context))
@@ -88,26 +75,17 @@ def user_details(request):
 
 def user_details_behalf(request):
 
-    # your_name = request.GET['first_name']
-    # context = {'your_name': your_name}
-    #import pdb; pdb.set_trace()
-
     if request.method == 'POST':
         # create a form instance and populate it with data from the request:
         #import pdb; pdb.set_trace()
         form = UserDetailsFormBehalf(request.POST)
         # check whether it's valid:
         if form.is_valid():
-            # process the data in form.cleaned_data as required
-            #import pdb; pdb.set_trace()
-            #print (form.cleaned_data['needs_access'])
-            # redirect to a new URLself
 
             context = {'your_name': 'Jayesh'}
 
             return redirect('/access-list/' + '?' + urlencode(context))
 
-    # if a GET (or any other method) we'll create a blank form
     else:
         form = UserDetailsFormBehalf()
 
@@ -115,26 +93,14 @@ def user_details_behalf(request):
 
 def access_list(request):
 
-    # your_name = request.GET['first_name']
-    # context = {'your_name': your_name}
-    #import pdb; pdb.set_trace()
-
     if request.method == 'POST':
-        # create a form instance and populate it with data from the request:
-        #import pdb; pdb.set_trace()
         form = AccessListForm(request.POST)
         # check whether it's valid:
         if form.is_valid():
-            # process the data in form.cleaned_data as required
-            #import pdb; pdb.set_trace()
-            #print (form.cleaned_data['needs_access'])
-            # redirect to a new URLself
 
             context = {'your_name': 'Jayesh'}
 
             return render(request, 'submitted.html', context)
-
-    # if a GET (or any other method) we'll create a blank form
     else:
         form = AccessListForm()
 
