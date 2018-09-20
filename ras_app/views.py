@@ -3,6 +3,7 @@ from django.shortcuts import render, redirect
 
 from .forms import NameForm, UserForm, AccessListForm, UserDetailsForm, UserDetailsFormBehalf
 from urllib.parse import urlencode
+from .models import Approver, Services, User, Request
 
 # Create your views here.
 
@@ -63,9 +64,9 @@ def user_details(request):
         form = UserDetailsForm(request.POST)
         # check whether it's valid:
         if form.is_valid():
-            context = {'your_name': 'Jayesh'}
 
-            return redirect('/access-list/' + '?' + urlencode(context))
+            form.save()
+            return redirect('/access-list/')# + '?' + urlencode(context))
 
     # if a GET (or any other method) we'll create a blank form
     else:
@@ -74,6 +75,11 @@ def user_details(request):
     return render(request, 'post-form.html', {'form': form, 'url': 'user-details'})
 
 def user_details_behalf(request):
+    # firstname = request.GET['first_name']
+    # surname = request.GET['last_name']
+    # email = request.GET['email']
+
+    #import pdb; pdb.set_trace()
 
     if request.method == 'POST':
         # create a form instance and populate it with data from the request:
@@ -81,10 +87,16 @@ def user_details_behalf(request):
         form = UserDetailsFormBehalf(request.POST)
         # check whether it's valid:
         if form.is_valid():
+            form.save(commit=False)
+            # Overwrite not working
+            form.user_email = 'me@me.com'
+            #import pdb; pdb.set_trace()
+            #initial={'user_email': 'me@me.com'}
+            #print (form.cleaned_data['access_list'])
+            form.save()
+            #context = {'your_name': 'Jayesh'}
 
-            context = {'your_name': 'Jayesh'}
-
-            return redirect('/access-list/' + '?' + urlencode(context))
+            return redirect('/access-list/') #+ '?' + urlencode(context))
 
     else:
         form = UserDetailsFormBehalf()
@@ -97,11 +109,19 @@ def access_list(request):
         form = AccessListForm(request.POST)
         # check whether it's valid:
         if form.is_valid():
+            #if form.cleaned_data['access_list'] == 'yes':
 
-            context = {'your_name': 'Jayesh'}
+            for current_user in Request.objects.filter(signed_off=True):
+                print (current_user.user_email)
+                User.objects.get_or_create(firstname='User', surname='B', email=current_user.user_email, end_date='2018-09-20')
+                #userobj.save()
 
-            return render(request, 'submitted.html', context)
+
+            return render(request, 'submitted.html')
     else:
         form = AccessListForm()
 
     return render(request, 'post-form.html', {'form': form, 'url': 'access-list'})
+
+def post_request():
+    print('')
