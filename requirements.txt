@@ -5,3 +5,4 @@ psycopg2-binary==2.7.5
 python-dotenv==0.9.1
 pytz==2018.5
 requests==2.19.1
+notifications-python-client==5.2.0

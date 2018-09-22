@@ -120,3 +120,6 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
+GOV_NOTIFY_API_KEY = os.getenv('GOV_NOTIFY_API_KEY')
+EMAIL_UUID = os.getenv('EMAIL_UUID')

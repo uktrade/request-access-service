@@ -1,9 +1,23 @@
 #from django.http import HttpResponseRedirect
 from django.shortcuts import render, redirect
 
-from .forms import NameForm, UserForm, AccessListForm, UserDetailsForm, UserDetailsFormBehalf
+from .forms import NameForm, UserForm, AccessListForm, UserDetailsForm, UserDetailsFormBehalf, SignupForm
 from urllib.parse import urlencode
 from .models import Approver, Services, User, Request
+from django.contrib.sites.shortcuts import get_current_site
+from django.utils.encoding import force_bytes, force_text
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.template.loader import render_to_string
+from .tokens import account_activation_token
+
+from django.contrib.auth.tokens import default_token_generator
+from django.urls import reverse
+from django.http import HttpResponse
+
+from django.contrib.auth.models import User
+from django.utils import timezone
+from django.utils.crypto import get_random_string
+#import datetime
 
 # Create your views here.
 
@@ -64,9 +78,38 @@ def user_details(request):
         form = UserDetailsForm(request.POST)
         # check whether it's valid:
         if form.is_valid():
+            user = form.save(commit=False)
 
-            form.save()
-            return redirect('/access-list/')# + '?' + urlencode(context))
+            #import pdb; pdb.set_trace()
+            user.user_email = user.requestor
+            
+            current_site = get_current_site(request)
+            #kwargs = {
+            
+            token = get_random_string(length=20,allowed_chars='abcdefgh0123456789')
+            #}
+            # kwargs = {
+            #     "uidb64": urlsafe_base64_encode(force_bytes(user.pk)).decode(),
+            #     "token": default_token_generator.make_token(user)
+            # }
+
+            #activation_url = reverse('activate', kwargs=kwargs)
+            user.token=token
+            user.save()
+            uidb64 = urlsafe_base64_encode(force_bytes(user.pk)).decode()
+            activation_url  = '/activate/' + uidb64 + '/' + token + '/'
+
+            activate_url = "{0}://{1}{2}".format(request.scheme, request.get_host(), activation_url)
+
+            # context = {
+            #     'user': user,
+            #     'activate_url': activate_url
+            # }
+            # html_content = render_to_string('activate.html', context)
+
+
+            print (user.requestor, ': ', activate_url)
+            return render(request, 'submitted.html')# + '?' + urlencode(context))
 
     # if a GET (or any other method) we'll create a blank form
     else:
@@ -88,13 +131,9 @@ def user_details_behalf(request):
         # check whether it's valid:
         if form.is_valid():
             form.save(commit=False)
-            # Overwrite not working
-            form.user_email = 'me@me.com'
-            #import pdb; pdb.set_trace()
-            #initial={'user_email': 'me@me.com'}
-            #print (form.cleaned_data['access_list'])
+
             form.save()
-            #context = {'your_name': 'Jayesh'}
+
 
             return redirect('/access-list/') #+ '?' + urlencode(context))
 
@@ -125,3 +164,26 @@ def access_list(request):
 
 def post_request():
     print('')
+
+
+
+def activate(request, uidb64=None, token=None):
+    #import pdb; pdb.set_trace()
+    #try:
+        #uid = force_text(urlsafe_base64_decode(uidb64))
+        #token_in_table=Request.objects.get(id=uid).token
+
+    if Request.objects.filter(token=token).exists() and not Request.objects.get(token=token).signed_off:
+
+        Request.objects.filter(token=token).update(signed_off=True, signed_off_on=timezone.now())
+        return HttpResponse('Thank you for your email confirmation.')
+    elif Request.objects.filter(token=token).exists() and Request.objects.get(token=token).signed_off:
+        return HttpResponse('Confirmation has already been done!')
+
+    else: 
+        return HttpResponse('Authourization link is invalid!')
+
+    # except token.DoesNotExist:
+    #     return HttpResponse('Activation link is invalid!')
+
+

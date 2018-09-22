@@ -1,6 +1,9 @@
 from django import forms
 from .models import Approver, Services, User, Request
 
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
+
 ACCESS_CHOICES= [
     ('myeslf', 'Yes, for myself'),
     ('behalf', 'No, on behalf of someone'),
@@ -35,6 +38,12 @@ class UserDetailsForm(forms.Form):
     email= forms.EmailField()
     approver_list= forms.CharField(label='Please select approver?', widget=forms.Select(choices=APPROVER_LIST))
     access_list= forms.CharField(label='What access do you require?', widget=forms.CheckboxSelectMultiple(choices=ACCESS_LIST))
+
+class SignupForm(UserCreationForm):
+    email = forms.EmailField(max_length=200, help_text='Required')
+    class Meta:
+        model = User
+        fields = ('username', 'email', 'password1', 'password2')
 
 # class UserDetailsFormBehalf(forms.Form):
 #     requestor_firstname= forms.CharField(label='Requestor First name', max_length=60)

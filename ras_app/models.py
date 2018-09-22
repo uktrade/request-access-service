@@ -20,9 +20,11 @@ class Request(models.Model):
     approver = models.ForeignKey(Approver, on_delete=models.CASCADE)
     services = models.ManyToManyField(Services)
     signed_off = models.BooleanField(default=False)
-    signed_off_on = models.DateField(null=True)
+    signed_off_on = models.DateTimeField(null=True)
     reason = models.CharField(max_length=60)
     user_email = models.EmailField()
+    token = models.CharField(default=False, max_length=20)
+    completed = models.BooleanField(default=False)
 
     def __str__(self):
         return str(self.id)
