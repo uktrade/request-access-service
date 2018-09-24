@@ -28,6 +28,7 @@ SECRET_KEY = (os.getenv('SECRET_KEY'))
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True if (os.getenv('DEBUG') == 'true') else False
 
+
 ALLOWED_HOSTS = ['*']
 
 
@@ -40,6 +41,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'govuk_template_base',
+    'bootstrap_datepicker_plus',
     'ras_app',
 ]
 
@@ -73,6 +76,9 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
+BOOTSTRAP4 = {
+    'include_jquery': True,
+}
 
 # Database
 # https://docs.djangoproject.com/en/2.1/ref/settings/#databases

@@ -1,10 +1,16 @@
-<!-- howdy/templates/index.html -->
 <!-- howdy/templates/next-page.html -->
 <!DOCTYPE html>
 {% extends 'base.html' %}
 
 {% block content %}
         <div class ="page-body">
+        
+     	{% if requests_to_complete %}
+        	{% for current_user in requests_to_complete %}
+        		{{ current_user.user_email }} {{ current_user.service_name }}
+
+        	{% endfor %}
+     	{% endif %}
         <form method="post">
           {% csrf_token %}
           {{ form }}

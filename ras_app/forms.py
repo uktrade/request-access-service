@@ -1,15 +1,16 @@
 from django import forms
 from .models import Approver, Services, User, Request
 
+from django.forms.widgets import CheckboxSelectMultiple
 from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth.models import User
+from bootstrap_datepicker_plus import DatePickerInput
 
 ACCESS_CHOICES= [
     ('myeslf', 'Yes, for myself'),
     ('behalf', 'No, on behalf of someone'),
     ]
 
-ACCESS_LIST= [
+ACTION_REQUESTS= [
     ('yes', 'Yes'),
     ('no', 'No'),
     ]
@@ -20,62 +21,58 @@ APPROVER_LIST = [
     ('bowensun', 'Bowen Sun')
 ]
 
-class NameForm(forms.Form):
-    your_name = forms.CharField(label='Your name', max_length=100)
-
-class UserForm(forms.Form):
-    # first_name= forms.CharField(label='First name', max_length=100)
-    # last_name= forms.CharField(max_length=100)
-    # email= forms.EmailField()
-    needs_access= forms.CharField(label='Is access for yourself?', widget=forms.RadioSelect(choices=ACCESS_CHOICES))
-
-class AccessListForm(forms.Form):
-    access_list= forms.CharField(label='Sign off access?', widget=forms.CheckboxSelectMultiple(choices=ACCESS_LIST))
-
-class UserDetailsForm(forms.Form):
-    first_name= forms.CharField(label='First name', max_length=60)
-    last_name= forms.CharField(max_length=60)
-    email= forms.EmailField()
-    approver_list= forms.CharField(label='Please select approver?', widget=forms.Select(choices=APPROVER_LIST))
-    access_list= forms.CharField(label='What access do you require?', widget=forms.CheckboxSelectMultiple(choices=ACCESS_LIST))
-
-class SignupForm(UserCreationForm):
-    email = forms.EmailField(max_length=200, help_text='Required')
+class UserEndForm(forms.ModelForm):
     class Meta:
         model = User
-        fields = ('username', 'email', 'password1', 'password2')
+        labels = {
+            'end_date': 'End Date of Contract(yyyy-mm-dd)'
 
-# class UserDetailsFormBehalf(forms.Form):
-#     requestor_firstname= forms.CharField(label='Requestor First name', max_length=60)
-#     requestor_surname= forms.CharField(max_length=60)
-#     requestor_email= forms.EmailField()
-#     user_firstname= forms.CharField(label='User First name', max_length=60)
-#     user_surname= forms.CharField(max_length=60)
-#     user_email= forms.EmailField()
-#     enddate= forms.DateField()
-#     approver_list= forms.CharField(label='Please select approver?', widget=forms.Select(choices=APPROVER_LIST))
-#     access_list= forms.CharField(label='What access do you require?', widget=forms.CheckboxSelectMultiple(choices=ACCESS_LIST))
+        }
+        fields = ['firstname', 'surname', 'email', 'end_date']
+        # widgets = {
+        #     'end_date': DatePickerInput(format='%Y-%m-%d'), # specify date-frmat
+        # }
+
+class UserForm(forms.Form):
+
+    needs_access= forms.CharField(label='Is access for yourself?', widget=forms.RadioSelect(choices=ACCESS_CHOICES))
+
+class ActionRequestsForm(forms.Form):
+    access_list= forms.CharField(label='Have you created all these accounts?', widget=forms.CheckboxSelectMultiple(choices=ACTION_REQUESTS))
 
 class UserDetailsForm(forms.ModelForm):
     class Meta:
         model = Request
         labels = {
-            'requestor': 'Your e-mail'
+            'requestor': 'Your e-mail',
+            'approver': 'Person who will approve access',
+            'services': 'User needs access to'
         }
         exclude = ('user_email',)
         #UserDetailsForm(initial={'user_email': 'requestor'})
         fields = ['requestor', 'reason', 'approver', 'services']
 
-class UserDetailsFormBehalf(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+
+        super(UserDetailsForm, self).__init__(*args, **kwargs)
+
+        self.fields["services"].widget = CheckboxSelectMultiple()
+        self.fields["services"].queryset = Services.objects.all()
+
+class UserDetailsBehalfForm(forms.ModelForm):
     class Meta:
         model = Request
+        labels = {
+            'requestor': 'Your e-mail',
+            'user_email': 'E-mail address of user who needs access',
+            'approver': 'Person who will approve access',
+            'services': 'User needs access to'
+        }
         fields = ['requestor', 'reason', 'user_email', 'approver', 'services']
-        # requestor_firstname= forms.CharField(label='Requestor First name', max_length=60)
-        # requestor_surname= forms.CharField(max_length=60)
-        # requestor_email= forms.EmailField()
-        # user_firstname= forms.CharField(label='User First name', max_length=60)
-        # user_surname= forms.CharField(max_length=60)
-        # user_email= forms.EmailField()
-        # enddate= forms.DateField()
-        # approver_list= forms.CharField(label='Please select approver?', widget=forms.Select(choices=APPROVER_LIST))
-        # access_list= forms.CharField(label='What access do you require?', widget=forms.CheckboxSelectMultiple(choices=ACCESS_LIST))
+
+    def __init__(self, *args, **kwargs):
+
+        super(UserDetailsBehalfForm, self).__init__(*args, **kwargs)
+
+        self.fields["services"].widget = CheckboxSelectMultiple()
+        self.fields["services"].queryset = Services.objects.all()

@@ -34,9 +34,8 @@ class User(models.Model):
     surname = models.CharField(max_length=60)
     email = models.EmailField()
     end_date = models.DateField(default=True)
-    #approver = models.ForeignKey(Approver, on_delete=models.CASCADE)
-    #services = models.ManyToManyField(Services)
-    request = models.ManyToManyField(Request)
+    #request = models.ManyToManyField(Request)
+    request = models.ForeignKey(Request, on_delete=models.CASCADE)
 
     def __str__(self):
         return self.email
