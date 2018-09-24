@@ -1,16 +1,16 @@
-{% extends 'govuk_template.html' %}
+{% extends 'ras_app_template.html' %}
 {% load static %}
 {% load govuk_template_base %}
 
 {% block head %}
   {{ block.super }}
-  <link href="{% static 'stylesheets/demo.css' %}" media="screen" rel="stylesheet" />
-  <link href="{% static 'stylesheets/demo-print.css' %}" media="print" rel="stylesheet" />
+  <link href="{% static 'css/demo.css' %}" media="screen" rel="stylesheet" />
+
 {% endblock %}
 
 {% block inner_content %}
-<h1 class="heading-xlarge">Demo template</h1>
-
+<h1 class="heading-xlarge">Request Access Service</h1>
+<!--
     <body>
       	<div class ="page-header">
         <h1>Remote Access Service</h1>
@@ -21,5 +21,5 @@
         <div class ="page-footer">
         		<h5><a href="/admin">WebOps ___ </a></h5>
         	</div>
-    </body>
+    </body> -->
 {% endblock %}

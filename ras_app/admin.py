@@ -35,15 +35,8 @@ class User_admin(admin.ModelAdmin):
 	# def approver(self, obj):
 	# 	return obj.approver.email,
 
-	# def services_approved(self, obj):
-	# 	return obj.services.service_name
-	#
-	# def get_services(self, obj):
-	# 	return "\n".join([p.service_name for p in obj.services.all()])
-
 	def requests_submitted(self, obj):
 		return str(obj.request.id)
-
 
 	# def get_requests(self, obj):
 	# 	return "\n".join([str(p.id) for p in obj.request.all()])

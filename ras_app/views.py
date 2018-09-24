@@ -95,8 +95,9 @@ def user_details_behalf(request):
             activation_url  = '/activate/' + uidb64 + '/' + token + '/'
             activate_url = "{0}://{1}{2}".format(request.scheme, request.get_host(), activation_url)
             send_approvals_email(activate_url, str(user.approver))
+            context = {'requests_id': user.id}
             #print (user.requestor, ': ', activate_url)
-            return redirect('/user-end/')
+            return redirect('/user-end/' + '?' + urlencode(context))
 
     else:
         form = UserDetailsBehalfForm()
