@@ -1,0 +1,18 @@
+<!-- howdy/templates/index.html -->
+<!-- <!DOCTYPE html> -->
+
+{% extends 'base.html' %}
+{% load bootstrap4 %}
+{% block content %}
+{% bootstrap_css %}
+{% bootstrap_javascript jquery='full' %}
+
+        <div class ="page-body">
+        <form method="post">
+          {% csrf_token %}
+          {{ form }}
+          {{ form.media }}
+          <input type="submit" value="Submit">
+        </form>
+      </div>
+{% endblock %}

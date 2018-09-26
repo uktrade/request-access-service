@@ -25,13 +25,16 @@ class UserEndForm(forms.ModelForm):
     class Meta:
         model = User
         labels = {
-            'end_date': 'End Date of Contract(yyyy-mm-dd)'
+            'firsname': 'Your Firstname',
+            'surname': 'Your Surnname',
+            #'email': 'Your e-mail',
+            'end_date': 'End Date of Contract(dd-mm-yyyy)'
 
         }
-        fields = ['firstname', 'surname', 'email', 'end_date']
-        # widgets = {
-        #     'end_date': DatePickerInput(format='%Y-%m-%d'), # specify date-frmat
-        # }
+        fields = ['firstname', 'surname', 'end_date'] #, 'email']
+        widgets = {
+            'end_date': DatePickerInput(),#format='%Y-%m-%d'), # specify date-frmat
+        }
 
 class UserForm(forms.Form):
 
@@ -45,8 +48,9 @@ class UserDetailsForm(forms.ModelForm):
         model = Request
         labels = {
             'requestor': 'Your e-mail',
+            'reason': 'Short description on why you need access',
             'approver': 'Person who will approve access',
-            'services': 'User needs access to'
+            'services': 'Services you needs access to'
         }
         exclude = ('user_email',)
         #UserDetailsForm(initial={'user_email': 'requestor'})

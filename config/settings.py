@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'govuk_template_base',
     'ras_app_template',
+    'bootstrap4',
     'bootstrap_datepicker_plus',
     'ras_app',
 ]

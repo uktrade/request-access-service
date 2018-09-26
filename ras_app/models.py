@@ -33,7 +33,7 @@ class User(models.Model):
     firstname = models.CharField(max_length=60)
     surname = models.CharField(max_length=60)
     email = models.EmailField()
-    end_date = models.DateField(default=True)
+    end_date = models.DateField(null=True)
     #request = models.ManyToManyField(Request)
     request = models.ForeignKey(Request, on_delete=models.CASCADE)
 

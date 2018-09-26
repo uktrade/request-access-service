@@ -64,7 +64,7 @@ def user_details(request):
             activate_url = "{0}://{1}{2}".format(request.scheme, request.get_host(), activation_url)
             send_approvals_email(activate_url, str(user.approver))
             #print (user.requestor, ': ', activate_url)
-            context = {'requests_id': user.id}
+            context = {'requests_id': user.id, 'email': user.requestor}
             return redirect('/user-end/' + '?' + urlencode(context))
 
     # if a GET (or any other method) we'll create a blank form
@@ -107,6 +107,7 @@ def user_details_behalf(request):
 def user_end(request):
 
     request_id = request.GET['requests_id']
+    email = request.GET['email']
     if request.method == 'POST':
         form = UserEndForm(request.POST)
         # check whether it's valid:
@@ -114,6 +115,7 @@ def user_end(request):
             #import pdb; pdb.set_trace()
             user = form.save(commit=False)
             request_obj=Request.objects.get(id=request_id)
+            user.email=email
             user.request = request_obj
             user.save()
             #form.save_m2m()
@@ -123,7 +125,7 @@ def user_end(request):
     else:
         form = UserEndForm()
 
-    return render(request, 'basic-post.html', {'form': form})
+    return render(request, 'basic-post2.html', {'form': form})
 
 def action_requests(request):
     #import pdb; pdb.set_trace()

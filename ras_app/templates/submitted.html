@@ -2,10 +2,16 @@
 {% extends 'base.html' %}
 
 {% block content %}
+{
         <div class ="page-body">
           <body>
               <h1>Submitted!</h1>
               <p>Thanks {{ your_name }}</p>
+              <p>Do you wish to create another request?</p>
+              <a href="/landing-page/">
+                <button type="startover" class="btn btn-default">Start Over</button>
+              </a>
+
           </body>
       </div>
 {% endblock %}
