@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'govuk_template_base',
+    'govuk_forms',
     'ras_app_template',
     'bootstrap4',
     'bootstrap_datepicker_plus',
@@ -132,3 +133,4 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 GOV_NOTIFY_API_KEY = os.getenv('GOV_NOTIFY_API_KEY')
 EMAIL_UUID = os.getenv('EMAIL_UUID')
+EMAIL_REQUESTOR_UUID = os.getenv('EMAIL_REQUESTOR_UUID')
