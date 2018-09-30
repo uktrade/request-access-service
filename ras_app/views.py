@@ -8,8 +8,9 @@ from .models import Approver, Services, User, Request
 from django.contrib.sites.shortcuts import get_current_site
 from django.utils.encoding import force_bytes, force_text
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
-from django.template.loader import render_to_string
-from .tokens import account_activation_token
+from django.template.loader import render_to_string, get_template
+from django.template import Template
+#from .tokens import account_activation_token
 from .email import send_approvals_email, send_requester_email
 from django.views.generic.edit import FormView
 
@@ -136,11 +137,11 @@ class user_details_behalf(FormView):
 class user_end(FormView):
     template_name = 'basic-post.html'
     form_class = UserEndForm
-    success_url = reverse_lazy('submitted.html')
+    #success_url = reverse_lazy('submitted.html')
 
 
     def form_valid(self, form):
-        import pdb; pdb.set_trace()
+        #import pdb; pdb.set_trace()
         request_id = self.request.GET['requests_id']
         email = self.request.GET['email']
 
@@ -148,33 +149,13 @@ class user_end(FormView):
         User.objects.create(email=email,
             firstname=form.cleaned_data['firstname'],
             surname=form.cleaned_data['surname'],
-            end_date=form.cleaned_data['end_date'], 
+            end_date=form.cleaned_data['end_date'],
             request=request_obj)
 
+        t = render_to_string("submitted.html")
 
+        return HttpResponse(t)
 
-# def user_end(request):
-
-#     request_id = request.GET['requests_id']
-#     email = request.GET['email']
-#     if request.method == 'POST':
-#         form = UserEndForm(request.POST)
-#         # check whether it's valid:
-#         if form.is_valid():
-#             #import pdb; pdb.set_trace()
-#             user = form.save(commit=False)
-#             request_obj=Request.objects.get(id=request_id)
-#             user.email=email
-#             user.request = request_obj
-#             user.save()
-#             #form.save_m2m()
-#             #import pdb; pdb.set_trace()
-#             return render(request, 'submitted.html')
-
-#     else:
-#         form = UserEndForm()
-
-#     return render(request, 'basic-post.html', {'form': form})
 
 # Prob dont need to do this as this can be done from the Admin interface.
 def action_requests(request):
@@ -222,3 +203,28 @@ def activate(request, uidb64=None, token=None):
 
     # except token.DoesNotExist:
     #     return HttpResponse('Activation link is invalid!')
+
+
+
+# def user_end(request):
+
+#     request_id = request.GET['requests_id']
+#     email = request.GET['email']
+#     if request.method == 'POST':
+#         form = UserEndForm(request.POST)
+#         # check whether it's valid:
+#         if form.is_valid():
+#             #import pdb; pdb.set_trace()
+#             user = form.save(commit=False)
+#             request_obj=Request.objects.get(id=request_id)
+#             user.email=email
+#             user.request = request_obj
+#             user.save()
+#             #form.save_m2m()
+#             #import pdb; pdb.set_trace()
+#             return render(request, 'submitted.html')
+
+#     else:
+#         form = UserEndForm()
+
+#     return render(request, 'basic-post.html', {'form': form})

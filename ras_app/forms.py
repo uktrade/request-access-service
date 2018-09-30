@@ -24,20 +24,6 @@ APPROVER_LIST = [
     ('bowensun', 'Bowen Sun')
 ]
 
-# class UserEndForm(forms.ModelForm):
-#     class Meta:
-#         model = User
-#         labels = {
-#             'firsname': 'Your Firstname',
-#             'surname': 'Your Surnname',
-#             #'email': 'Your e-mail',
-#             'end_date': 'End Date of Contract(dd-mm-yyyy)'
-
-#         }
-#         fields = ['firstname', 'surname', 'end_date'] #, 'email']
-#         widgets = {
-#             'end_date': DatePickerInput(),#format='%Y-%m-%d'), # specify date-frmat
-#         }
 
 class UserEndForm(GOVUKForm):
     firstname = forms.CharField(label='Your Firstname', max_length=60, widget=widgets.TextInput())
@@ -74,6 +60,21 @@ class UserDetailsBehalfForm(GOVUKForm):
     approver = forms.ChoiceField(label='Person who will approve access', choices=approver_list, widget=widgets.Select())
     services = forms.MultipleChoiceField(label='Services you needs access to', choices=services_list , widget=widgets.CheckboxSelectMultiple)
     user_email = forms.CharField(label='E-mail address of user who needs access', max_length=60, widget=widgets.TextInput())
+
+# class UserEndForm(forms.ModelForm):
+#     class Meta:
+#         model = User
+#         labels = {
+#             'firsname': 'Your Firstname',
+#             'surname': 'Your Surnname',
+#             #'email': 'Your e-mail',
+#             'end_date': 'End Date of Contract(dd-mm-yyyy)'
+
+#         }
+#         fields = ['firstname', 'surname', 'end_date'] #, 'email']
+#         widgets = {
+#             'end_date': DatePickerInput(),#format='%Y-%m-%d'), # specify date-frmat
+#         }
 
 # class UserDetailsBehalfForm(forms.ModelForm):
 #     class Meta:
