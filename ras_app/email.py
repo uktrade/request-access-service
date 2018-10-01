@@ -10,7 +10,7 @@ class Command(BaseCommand):
 
 def send_approvals_email(magic_link, approver):
     print ('Sending mail')
-    print (magic_link)
+    print (magic_link, approver)
     # notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
     # notifications_client.send_email_notification(
     #     email_address=approver,#'jayesh.patel@digital.trade.gov.uk',

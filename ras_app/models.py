@@ -32,10 +32,10 @@ class Request(models.Model):
 class User(models.Model):
     firstname = models.CharField(max_length=60)
     surname = models.CharField(max_length=60)
-    email = models.EmailField()
+    email = models.EmailField(max_length=60)#, unique=True)
     end_date = models.DateField(null=True)
     #request = models.ManyToManyField(Request)
-    request = models.ForeignKey(Request, on_delete=models.CASCADE)
+    request = models.ForeignKey(Request, on_delete=models.CASCADE, blank=True, null=True)
 
     def __str__(self):
         return self.email
