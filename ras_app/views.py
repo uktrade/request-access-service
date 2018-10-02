@@ -2,7 +2,7 @@
 from django.shortcuts import render, redirect
 
 from django.urls import reverse_lazy
-from .forms import UserEndForm, UserForm, ActionRequestsForm, UserDetailsForm#, UserDetailsBehalfForm
+from .forms import UserEndForm, UserForm, ActionRequestsForm, UserDetailsForm, AccessReasonForm#, UserDetailsBehalfForm
 from urllib.parse import urlencode
 from .models import Approver, Services, User, Request
 from django.contrib.sites.shortcuts import get_current_site
@@ -18,6 +18,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.urls import reverse
 from django.http import HttpResponse
 
+#from formtools.wizard.views import SessionWizardView
 #from django.contrib.auth.models import User
 from django.utils import timezone
 from django.utils.crypto import get_random_string
@@ -53,7 +54,7 @@ class user_end(FormView):
     form_class = UserEndForm
     #success_url = reverse_lazy('submitted.html')
     #behalf_status = self.kwargs['behalf']
-    success_url = reverse_lazy('user_details')
+    success_url = reverse_lazy('access_reason')#('user_details')
 
     def get_form_kwargs(self):
         kwargs = super(user_end, self).get_form_kwargs()
@@ -99,6 +100,37 @@ def get_token():
     return token
 
 
+class access_reason(FormView):
+    template_name = 'basic-post.html'
+    form_class = AccessReasonForm
+    success_url = reverse_lazy('user_details')
+
+    def form_valid(self, form):
+        #import pdb; pdb.set_trace()
+
+        #approver = Approver.objects.get(id=form.cleaned_data['approver'])
+        approver = form.cleaned_data['approver']
+        reason=form.cleaned_data['reason']
+        #self.context = dict(self.request.GET)
+        self.context = {
+            'email': self.request.GET['email'],
+            'user_email': self.request.GET['user_email'],
+            'behalf': self.request.GET['behalf'],
+            'approver': approver,
+            'reason': reason
+            }
+
+        return super().form_valid(form)
+
+
+    def get_success_url(self):
+        url = super().get_success_url()
+        #import pdb; pdb.set_trace()
+
+        #context = {'email': self.email, 'user_email': self.user_email, 'behalf': self.behalf_status}
+        return url + '?' + urlencode(self.context)
+
+
 class user_details(FormView):
     #import pdb; pdb.set_trace()
     template_name = 'basic-post.html'
@@ -107,15 +139,17 @@ class user_details(FormView):
 
     def form_valid(self, form):
         #Approver.add(*[Services.objects.get(id=id) for id in form.cleaned_data['services']])
-        approver = Approver.objects.get(id=form.cleaned_data['approver'])
+        #approver = Approver.objects.get(id=form.cleaned_data['approver'])
         #import pdb; pdb.set_trace()
         user_email = self.request.GET['user_email']
         requestor = self.request.GET['email']
         behalf = self.request.GET['behalf']
+        approver = Approver.objects.get(id=self.request.GET['approver'])
+        reason = self.request.GET['reason']
         token = get_token()
         request = Request.objects.create(
                         requestor=requestor,#form.cleaned_data['requestor'],
-                        reason=form.cleaned_data['reason'],
+                        reason=reason,#form.cleaned_data['reason'],
                         approver=approver,
                         token=token,
                         user_email=user_email)#form.cleaned_data['requestor'])
@@ -123,6 +157,7 @@ class user_details(FormView):
         request.services.set([Services.objects.get(id=id) for id in form.cleaned_data['services']])
         # self.request.requestor = form.cleaned_data['requestor']
         # self.request.request_obj_id = request.id
+        #import pdb; pdb.set_trace()
         User.objects.filter(email=user_email).update(request_id=request.id)
 
         send_mails(token, request.approver, request.id, user_email, self.request.scheme, self.request.get_host())

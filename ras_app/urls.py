@@ -1,7 +1,7 @@
 from django.conf.urls import url
 from . import views
 from django.urls import path, include
-from .views import user_details, landing_page, user_end
+from .views import user_details, landing_page, user_end, access_reason
 
 urlpatterns = [
 
@@ -14,5 +14,6 @@ urlpatterns = [
     url(r'^activate/(?P<uidb64>[0-9A-Za-z_\-]+)/(?P<token>[0-9A-Za-z]{1,20})/$',
         views.activate, name='activate'),
     path('user-details/', user_details.as_view(), name='user_details'),
+    path('access-reason/', access_reason.as_view(), name='access_reason'),
 
 ]
