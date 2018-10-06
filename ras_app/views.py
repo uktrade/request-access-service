@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 
 from django.urls import reverse_lazy
-from .forms import UserForm, ActionRequestsForm, UserDetailsForm, AccessReasonForm, UserEndForm#, UserDetailsBehalfForm
+from .forms import UserForm, ActionRequestsForm, UserDetailsForm, AccessReasonForm, UserEndForm
 from urllib.parse import urlencode
 from .models import Approver, Services, User, Request
 from django.utils.encoding import force_bytes, force_text
@@ -24,8 +24,8 @@ from django.contrib.auth.decorators import login_required
 
 # Create your views here.
 #@login_required(login_url='/landing-page/')
-class landing_page(FormView):
-    template_name = 'landing-page.html'
+class home_page(FormView):
+    template_name = 'home-page.html'
     form_class = UserForm
 
     def form_valid(self, form):
@@ -48,9 +48,9 @@ class user_end(FormView):
     success_url = reverse_lazy('access_reason')#('user_details')
 
     def dispatch(self, request, *args, **kwargs):
-        if not reverse('landing_page') in self.request.META.get('HTTP_REFERER', ''):
+        if not reverse('home_page') in self.request.META.get('HTTP_REFERER', ''):
             if not reverse('user_end') in self.request.META.get('HTTP_REFERER', ''):
-                return redirect('landing_page')
+                return redirect('home_page')
 
         return super().dispatch(request, *args, **kwargs)
 
@@ -101,7 +101,7 @@ class access_reason(FormView):
 
         if not reverse('user_end') in self.request.META.get('HTTP_REFERER', ''):
             if not reverse('access_reason') in self.request.META.get('HTTP_REFERER', ''):
-                return redirect('landing_page')
+                return redirect('home_page')
 
         return super().dispatch(request, *args, **kwargs)
 
@@ -145,7 +145,7 @@ class user_details(FormView):
         #import pdb; pdb.set_trace()
         if not reverse('access_reason') in self.request.META.get('HTTP_REFERER', ''):
             if not reverse('user_details') in self.request.META.get('HTTP_REFERER', ''):
-                return redirect('landing_page')
+                return redirect('home_page')
 
         return super().dispatch(request, *args, **kwargs)
 
@@ -177,14 +177,20 @@ class user_details(FormView):
 def admin_override(request):
     """This view is to redirect the admin page to SSO for authentication."""
     #import pdb; pdb.set_trace()
-    user = request.user
-    if user.is_authenticated and user.is_staff and user.is_active:
-        return redirect('/admin/')
-    elif not user.is_authenticated:
-        return redirect('authbroker:login')
-    else:
-        return HttpResponse('Forbidden', status=403)
+    # This section will lock down access if arrived via SSO
+    # user = request.user
+    # if user.is_authenticated and user.is_staff and user.is_active:
+    #     return redirect('/admin/')
+    # elif not user.is_authenticated:
+    #     return redirect('authbroker:login')
+    # else:
+    #     return HttpResponse('Forbidden', status=403)
 
+    if not reverse('home_page') in request.META.get('HTTP_REFERER', ''):
+        if not reverse('admin_override') in request.META.get('HTTP_REFERER', ''):
+            return redirect('home_page')
+
+    return redirect('/admin/')
 
 def activate(request, uidb64=None, token=None):
     #import pdb; pdb.set_trace()

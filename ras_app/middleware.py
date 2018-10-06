@@ -4,14 +4,12 @@ from django.conf import settings
 from django.http import HttpResponse
 from django.urls import resolve
 
-
 logger = logging.getLogger(__name__)
-
 
 def AdminIpRestrictionMiddleware(get_response):
 
     def middleware(request):
-        if resolve(request.path).app_name == 'admin':
+        if request.path == settings.IP_PROTECT_PATH:
             if settings.RESTRICT_ADMIN:
                 try:
                     remote_address = request.META['HTTP_X_FORWARDED_FOR'].split(',')[-2].strip()  # noqa: E501
