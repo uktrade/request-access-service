@@ -2,17 +2,18 @@
 <!-- <!DOCTYPE html> -->
 
 {% extends 'ras_app_template.html' %}
-{% load bootstrap4 %}
-{% block inner_content %}
-<!-- {% bootstrap_css %} -->
-{% bootstrap_javascript jquery='full' %}
 
+{% block inner_content %}
         <div class ="page-body">
+          Hi {{ request.user.first_name }} {{ request.user.last_name }}
+
         <form method="post">
           {% csrf_token %}
           {{ form }}
-          {{ form.media }}
           <input type="submit" class="button" value="Submit">
         </form>
+        </div>
+        <div align="right">
+        <a href="/admin/">Admin</a>
       </div>
 {% endblock %}

@@ -6,6 +6,7 @@ django-appconf==1.0.2
 django-bootstrap-datepicker-plus==3.0.5
 django-bootstrap4==0.0.7
 django-compressor==2.2
+django-environ==0.4.5
 django-govuk-forms==0.6
 django-govuk-template==0.7
 django-libsass==0.7
@@ -29,3 +30,4 @@ scss==0.8.73
 six==1.11.0
 urllib3==1.23
 watch==0.1.13
+-e git+https://github.com/uktrade/django-staff-sso-client.git#egg=authbroker_client

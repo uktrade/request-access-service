@@ -12,12 +12,14 @@ https://docs.djangoproject.com/en/2.1/ref/settings/
 
 import os
 import dj_database_url
+import environ
 from dotenv import load_dotenv
 load_dotenv()
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+env = environ.Env()
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/2.1/howto/deployment/checklist/
@@ -44,9 +46,11 @@ INSTALLED_APPS = [
     'govuk_template_base',
     'govuk_forms',
     'ras_app_template',
-    'bootstrap4',
-    'bootstrap_datepicker_plus',
+    #'bootstrap4',
+    #'bootstrap_datepicker_plus',
     'ras_app',
+    'authbroker_client',
+    'dit_user_management',
 ]
 
 MIDDLEWARE = [
@@ -57,6 +61,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'ras_app.middleware.AdminIpRestrictionMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -80,9 +85,9 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-BOOTSTRAP4 = {
-    'include_jquery': True,
-}
+# BOOTSTRAP4 = {
+#     'include_jquery': True,
+# }
 
 # Database
 # https://docs.djangoproject.com/en/2.1/ref/settings/#databases
@@ -91,6 +96,9 @@ DATABASES = {
     'default': dj_database_url.config()
 }
 
+AUTHENTICATION_BACKENDS = [
+    'authbroker_client.backends.AuthbrokerBackend',
+]
 
 # Password validation
 # https://docs.djangoproject.com/en/2.1/ref/settings/#auth-password-validators
@@ -110,6 +118,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+AUTH_USER_MODEL = 'dit_user_management.User'
 
 # Internationalization
 # https://docs.djangoproject.com/en/2.1/topics/i18n/
@@ -134,3 +143,11 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 GOV_NOTIFY_API_KEY = os.getenv('GOV_NOTIFY_API_KEY')
 EMAIL_UUID = os.getenv('EMAIL_UUID')
 EMAIL_REQUESTOR_UUID = os.getenv('EMAIL_REQUESTOR_UUID')
+LOGIN_REDIRECT_URL = "/landing-page/"
+LOGIN_URL = "/auth/login/"
+AUTHBROKER_URL = os.getenv("AUTHBROKER_URL")
+AUTHBROKER_CLIENT_ID = os.getenv("AUTHBROKER_CLIENT_ID")
+AUTHBROKER_CLIENT_SECRET = os.getenv("AUTHBROKER_CLIENT_SECRET")
+AUTHBROKER_SCOPES = "read write"
+RESTRICT_ADMIN = env.bool("RESTRICT_ADMIN", True)
+ALLOWED_ADMIN_IPS = env.list("ALLOWED_ADMIN_IPS")

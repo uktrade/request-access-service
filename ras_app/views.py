@@ -1,103 +1,95 @@
-#from django.http import HttpResponseRedirect
 from django.shortcuts import render, redirect
 
 from django.urls import reverse_lazy
-from .forms import UserEndForm, UserForm, ActionRequestsForm, UserDetailsForm, AccessReasonForm#, UserDetailsBehalfForm
+from .forms import UserForm, ActionRequestsForm, UserDetailsForm, AccessReasonForm, UserEndForm#, UserDetailsBehalfForm
 from urllib.parse import urlencode
 from .models import Approver, Services, User, Request
-from django.contrib.sites.shortcuts import get_current_site
 from django.utils.encoding import force_bytes, force_text
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+
 from django.template.loader import render_to_string, get_template
 from django.template import Template
-#from .tokens import account_activation_token
 from .email import send_approvals_email, send_requester_email
 from django.views.generic.edit import FormView
 
 from django.contrib.auth.tokens import default_token_generator
 from django.urls import reverse
 from django.http import HttpResponse
+from django.conf import settings
 
-#from formtools.wizard.views import SessionWizardView
-#from django.contrib.auth.models import User
 from django.utils import timezone
 from django.utils.crypto import get_random_string
-#from django.contrib.sites.models import Site
-#import datetime
+
+from django.contrib.auth.decorators import login_required
 
 # Create your views here.
-
+#@login_required(login_url='/landing-page/')
 class landing_page(FormView):
-    template_name = 'basic-post.html'
+    template_name = 'landing-page.html'
     form_class = UserForm
 
     def form_valid(self, form):
         self.behalf = False
-        #context = form.cleaned_data
-        #import pdb; pdb.set_trace()
+
         if form.cleaned_data['needs_access'] == 'behalf':
-            #self.success_url = reverse_lazy('user_details_behalf')
             self.behalf = True
-        # else:
-        #     self.success_url = reverse_lazy('user_end')#('user_details')
+
         self.success_url = reverse_lazy('user_end')
         return super().form_valid(form)
 
     def get_success_url(self):
         url = super().get_success_url()
-        #import pdb; pdb.set_trace()
         context = {'behalf': self.behalf}
         return url + '?' + urlencode(context)
 
 class user_end(FormView):
     template_name = 'basic-post.html'
     form_class = UserEndForm
-    #success_url = reverse_lazy('submitted.html')
-    #behalf_status = self.kwargs['behalf']
     success_url = reverse_lazy('access_reason')#('user_details')
 
+    def dispatch(self, request, *args, **kwargs):
+        if not reverse('landing_page') in self.request.META.get('HTTP_REFERER', ''):
+            if not reverse('user_end') in self.request.META.get('HTTP_REFERER', ''):
+                return redirect('landing_page')
+
+        return super().dispatch(request, *args, **kwargs)
+
     def get_form_kwargs(self):
+
         kwargs = super(user_end, self).get_form_kwargs()
-        #import pdb; pdb.set_trace()
-        self. behalf_status=self.request.GET['behalf']
+
+        self.behalf_status=self.request.GET['behalf']
         kwargs.update({'behalf': self.behalf_status})
         return kwargs
 
     def form_valid(self, form):
-
-        self.email = form.cleaned_data['email']
+        self.email = self.request.user.email
 
         if self.behalf_status == 'True':
             self.user_email = form.cleaned_data['user_email']
+            firstname = form.cleaned_data['firstname']
+            surname = form.cleaned_data['surname']
+
         else:
             self.user_email = self.email
+            firstname = self.request.user.first_name
+            surname = self.request.user.last_name
 
         self.user = User.objects.update_or_create(
             defaults={
-            'firstname': form.cleaned_data['firstname'],
-            'surname': form.cleaned_data['surname'],
+            'firstname': firstname,
+            'surname': surname,
             'end_date': form.cleaned_data['end_date']
             },
-            email=self.user_email#form.cleaned_data['email']
+            email=self.user_email
             )
-
-        #import pdb; pdb.set_trace()
 
         return super().form_valid(form)
 
     def get_success_url(self):
         url = super().get_success_url()
-        #import pdb; pdb.set_trace()
-
         context = {'email': self.email, 'user_email': self.user_email, 'behalf': self.behalf_status}
         return url + '?' + urlencode(context)
-
-
-def get_token():
-    #import pdb; pdb.set_trace()
-    token = get_random_string(length=20,allowed_chars='abcdefgh0123456789')
-
-    return token
 
 
 class access_reason(FormView):
@@ -105,13 +97,17 @@ class access_reason(FormView):
     form_class = AccessReasonForm
     success_url = reverse_lazy('user_details')
 
-    def form_valid(self, form):
-        #import pdb; pdb.set_trace()
+    def dispatch(self, request, *args, **kwargs):
 
-        #approver = Approver.objects.get(id=form.cleaned_data['approver'])
+        if not reverse('user_end') in self.request.META.get('HTTP_REFERER', ''):
+            if not reverse('access_reason') in self.request.META.get('HTTP_REFERER', ''):
+                return redirect('landing_page')
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
         approver = form.cleaned_data['approver']
         reason=form.cleaned_data['reason']
-        #self.context = dict(self.request.GET)
         self.context = {
             'email': self.request.GET['email'],
             'user_email': self.request.GET['user_email'],
@@ -122,49 +118,15 @@ class access_reason(FormView):
 
         return super().form_valid(form)
 
-
     def get_success_url(self):
         url = super().get_success_url()
-        #import pdb; pdb.set_trace()
-
-        #context = {'email': self.email, 'user_email': self.user_email, 'behalf': self.behalf_status}
         return url + '?' + urlencode(self.context)
 
 
-class user_details(FormView):
-    #import pdb; pdb.set_trace()
-    template_name = 'basic-post.html'
-    #behalf_status = False
-    form_class = UserDetailsForm#(behalf=behalf_stat)
+def get_token():
+    token = get_random_string(length=20,allowed_chars='abcdefgh0123456789')
 
-    def form_valid(self, form):
-        #Approver.add(*[Services.objects.get(id=id) for id in form.cleaned_data['services']])
-        #approver = Approver.objects.get(id=form.cleaned_data['approver'])
-        #import pdb; pdb.set_trace()
-        user_email = self.request.GET['user_email']
-        requestor = self.request.GET['email']
-        behalf = self.request.GET['behalf']
-        approver = Approver.objects.get(id=self.request.GET['approver'])
-        reason = self.request.GET['reason']
-        token = get_token()
-        request = Request.objects.create(
-                        requestor=requestor,#form.cleaned_data['requestor'],
-                        reason=reason,#form.cleaned_data['reason'],
-                        approver=approver,
-                        token=token,
-                        user_email=user_email)#form.cleaned_data['requestor'])
-
-        request.services.set([Services.objects.get(id=id) for id in form.cleaned_data['services']])
-        # self.request.requestor = form.cleaned_data['requestor']
-        # self.request.request_obj_id = request.id
-        #import pdb; pdb.set_trace()
-        User.objects.filter(email=user_email).update(request_id=request.id)
-
-        send_mails(token, request.approver, request.id, user_email, self.request.scheme, self.request.get_host())
-
-        t = render_to_string("submitted.html")
-
-        return HttpResponse(t)
+    return token
 
 
 def send_mails(token, approver, request_id, user_email, protocol, domain):
@@ -174,6 +136,54 @@ def send_mails(token, approver, request_id, user_email, protocol, domain):
     activate_url = "{0}://{1}{2}".format(protocol, domain, activation_url)
     send_approvals_email(activate_url, str(approver))
     send_requester_email(str(request_id), str(user_email))
+
+class user_details(FormView):
+    template_name = 'basic-post.html'
+    form_class = UserDetailsForm
+
+    def dispatch(self, request, *args, **kwargs):
+        #import pdb; pdb.set_trace()
+        if not reverse('access_reason') in self.request.META.get('HTTP_REFERER', ''):
+            if not reverse('user_details') in self.request.META.get('HTTP_REFERER', ''):
+                return redirect('landing_page')
+
+        return super().dispatch(request, *args, **kwargs)
+
+
+    def form_valid(self, form):
+        user_email = self.request.GET['user_email']
+        requestor = self.request.GET['email']
+        behalf = self.request.GET['behalf']
+        approver = Approver.objects.get(id=self.request.GET['approver'])
+        reason = self.request.GET['reason']
+        token = get_token()
+        request = Request.objects.create(
+                        requestor=requestor,
+                        reason=reason,
+                        approver=approver,
+                        token=token,
+                        user_email=user_email)
+
+        request.services.set([Services.objects.get(id=id) for id in form.cleaned_data['services']])
+        User.objects.filter(email=user_email).update(request_id=request.id)
+
+        send_mails(token, request.approver, request.id, user_email, self.request.scheme, self.request.get_host())
+
+        t = render_to_string("submitted.html")
+
+        return HttpResponse(t)
+
+
+def admin_override(request):
+    """This view is to redirect the admin page to SSO for authentication."""
+    #import pdb; pdb.set_trace()
+    user = request.user
+    if user.is_authenticated and user.is_staff and user.is_active:
+        return redirect('/admin/')
+    elif not user.is_authenticated:
+        return redirect('authbroker:login')
+    else:
+        return HttpResponse('Forbidden', status=403)
 
 
 def activate(request, uidb64=None, token=None):
@@ -192,12 +202,9 @@ def activate(request, uidb64=None, token=None):
     else:
         return HttpResponse('Authourization link is invalid!')
 
-    # except token.DoesNotExist:
-    #     return HttpResponse('Activation link is invalid!')
 
 # Prob dont need to do this as this can be done from the Admin interface.
 def action_requests(request):
-    #import pdb; pdb.set_trace()
     requests_to_complete = Request.objects.filter(completed=False)
 
     context = {'requests_to_complete': requests_to_complete}
@@ -213,7 +220,6 @@ def action_requests(request):
                 print (current_user.user_email)
                 User.objects.get_or_create(firstname='User', surname='B', email=current_user.user_email, end_date='2018-09-20')
                 #userobj.save()
-
 
             return render(request, 'submitted.html')
     else:
