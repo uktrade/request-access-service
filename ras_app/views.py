@@ -193,16 +193,16 @@ def activate(request, uidb64=None, token=None):
 
         Request.objects.filter(token=token).update(signed_off=True, signed_off_on=timezone.now())
         context = {'message': 'Thank you for your email confirmation.'}
-        render_to_string('notify.html', context)
+        t = render_to_string('notify.html', context)
         return HttpResponse(t)
     elif Request.objects.filter(token=token).exists() and Request.objects.get(token=token).signed_off:
         context = {'message': 'Confirmation has already been done!'}
-        render_to_string('notify.html', context)
+        t = render_to_string('notify.html', context)
         return HttpResponse(t)
 
     else:
         context = {'message': 'Authourization link is invalid!'}
-        render_to_string('notify.html', context)
+        t = render_to_string('notify.html', context)
         return HttpResponse(t)
 
 
