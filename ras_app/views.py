@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 
 from django.urls import reverse_lazy
-from .forms import UserForm, ActionRequestsForm, UserDetailsForm, AccessReasonForm, UserEndForm
+from .forms import UserForm, ActionRequestsForm, UserDetailsForm, AccessReasonForm, UserEndForm, RejectForm
 from urllib.parse import urlencode
 from .models import Approver, Services, User, Request
 from django.utils.encoding import force_bytes, force_text
@@ -129,13 +129,13 @@ def get_token():
     return token
 
 
-def send_mails(token, approver, request_id, user_email, protocol, domain):
+def send_mails(token, approver, request_id, user_email):#, protocol, domain):
 
-    uidb64 = urlsafe_base64_encode(force_bytes(request_id)).decode()
-    activation_url  = '/activate/' + uidb64 + '/' + token + '/'
-    activate_url = "{0}://{1}{2}".format(protocol, domain, activation_url)
-    send_approvals_email(activate_url, str(approver))
-    send_requester_email(str(request_id), str(user_email))
+    #uidb64 = urlsafe_base64_encode(force_bytes(request_id)).decode()
+    # activation_url  = '/activate/' + token + '/'
+    # activate_url = "{0}://{1}{2}".format(protocol, domain, activation_url)
+    send_approvals_email(token, str(approver))
+    send_requester_email(str(request_id), str(user_email), '')
 
 class user_details(FormView):
     template_name = 'basic-post.html'
@@ -167,7 +167,7 @@ class user_details(FormView):
         request.services.set([Services.objects.get(id=id) for id in form.cleaned_data['services']])
         User.objects.filter(email=user_email).update(request_id=request.id)
 
-        send_mails(token, request.approver, request.id, user_email, self.request.scheme, self.request.get_host())
+        send_mails(token, request.approver, request.id, user_email)#, self.request.scheme, self.request.get_host())
 
         t = render_to_string("submitted.html")
 
@@ -176,15 +176,6 @@ class user_details(FormView):
 
 def admin_override(request):
     """This view is to redirect the admin page to SSO for authentication."""
-    #import pdb; pdb.set_trace()
-    # This section will lock down access if arrived via SSO
-    # user = request.user
-    # if user.is_authenticated and user.is_staff and user.is_active:
-    #     return redirect('/admin/')
-    # elif not user.is_authenticated:
-    #     return redirect('authbroker:login')
-    # else:
-    #     return HttpResponse('Forbidden', status=403)
 
     if not reverse('home_page') in request.META.get('HTTP_REFERER', ''):
         if not reverse('admin_override') in request.META.get('HTTP_REFERER', ''):
@@ -201,12 +192,56 @@ def activate(request, uidb64=None, token=None):
     if Request.objects.filter(token=token).exists() and not Request.objects.get(token=token).signed_off:
 
         Request.objects.filter(token=token).update(signed_off=True, signed_off_on=timezone.now())
-        return HttpResponse('Thank you for your email confirmation.')
+        context = {'message': 'Thank you for your email confirmation.'}
+        render_to_string('notify.html', context)
+        return HttpResponse(t)
     elif Request.objects.filter(token=token).exists() and Request.objects.get(token=token).signed_off:
-        return HttpResponse('Confirmation has already been done!')
+        context = {'message': 'Confirmation has already been done!'}
+        render_to_string('notify.html', context)
+        return HttpResponse(t)
 
     else:
-        return HttpResponse('Authourization link is invalid!')
+        context = {'message': 'Authourization link is invalid!'}
+        render_to_string('notify.html', context)
+        return HttpResponse(t)
+
+
+# def send_mail_rejected(requestor_email, rejected_reason):
+#     print (requestor_email, rejected_reason)
+#     send_requester_email(request_id, requestor, rejected_reason)
+
+class reject_access(FormView):
+    template_name = 'basic-post.html'
+    form_class = RejectForm
+
+    def dispatch(self, request, *args, **kwargs):
+        #import pdb; pdb.set_trace()
+        self.token =  kwargs['token']
+        if Request.objects.filter(token=self.token).exists() and not Request.objects.get(token=self.token).signed_off:
+            print ("Do nothing")
+
+            #Request.objects.filter(token=token).update(signed_off=True, signed_off_on=timezone.now())
+            #return HttpResponse('Thank you for your email confirmation.')
+        elif Request.objects.filter(token=self.token).exists() and Request.objects.get(token=self.token).signed_off:
+            context = {'message': 'Confirmation has already been done!'}
+            t = render_to_string('notify.html', context)
+            return HttpResponse(t)
+        else:
+            context = {'message': 'Authourization link is invalid!'}
+            t = render_to_string('notify.html', context)
+            return HttpResponse(t)
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+
+        Request.objects.filter(token=self.token).update(rejected=True, rejected_reason=form.cleaned_data['rejected_reason'])
+        #t = render_to_string("submitted.html")
+        #user_email = Request.objects.get(token=self.token).user_email
+        send_requester_email(Request.objects.get(token=self.token).id ,Request.objects.get(token=self.token).requestor, form.cleaned_data['rejected_reason'])
+
+        context = {'message': 'Thank you, request rejected.  Requester has been notified'}
+        t = render_to_string('notify.html', context)#, message)
+        return HttpResponse(t)# 'Thank you, request rejected.  Requester has been notified')
 
 
 # Prob dont need to do this as this can be done from the Admin interface.

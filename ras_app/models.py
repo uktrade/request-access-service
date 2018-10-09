@@ -21,10 +21,12 @@ class Request(models.Model):
     services = models.ManyToManyField(Services)
     signed_off = models.BooleanField(default=False)
     signed_off_on = models.DateTimeField(null=True)
-    reason = models.CharField(max_length=60)
+    reason = models.CharField(max_length=400)
     user_email = models.EmailField()
     token = models.CharField(default=False, max_length=20)
     completed = models.BooleanField(default=False)
+    rejected = models.BooleanField(default=False)
+    rejected_reason = models.CharField(blank=True, max_length=400)
 
     def __str__(self):
         return str(self.id)
