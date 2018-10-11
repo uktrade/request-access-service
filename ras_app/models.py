@@ -1,4 +1,5 @@
 from django.db import models
+import uuid
 
 # Create your models here.
 class Approver(models.Model):
@@ -18,7 +19,7 @@ class Services(models.Model):
 class Request(models.Model):
     requestor = models.EmailField()
     approver = models.ForeignKey(Approver, on_delete=models.CASCADE)
-    services = models.ManyToManyField(Services)
+    services = models.ManyToManyField(Services, through='RequestServices')
     signed_off = models.BooleanField(default=False)
     signed_off_on = models.DateTimeField(null=True)
     reason = models.CharField(max_length=400)
@@ -36,8 +37,20 @@ class User(models.Model):
     surname = models.CharField(max_length=60)
     email = models.EmailField(max_length=60)#, unique=True)
     end_date = models.DateField(null=True)
-    #request = models.ManyToManyField(Request)
     request = models.ForeignKey(Request, on_delete=models.CASCADE, blank=True, null=True)
 
     def __str__(self):
         return self.email
+
+class AccountsCreator(models.Model):
+    firstname = models.CharField(max_length=60)
+    surname = models.CharField(blank=True, max_length=60)
+    email = models.EmailField()
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False)
+    services = models.ManyToManyField(Services)
+
+class RequestServices(models.Model):
+    request = models.ForeignKey(Request, on_delete=models.CASCADE)
+    service = models.ForeignKey(Services, on_delete=models.CASCADE)
+    completed = models.BooleanField(default=False)
+    completed_date = models.DateTimeField(null=True)

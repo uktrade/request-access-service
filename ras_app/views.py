@@ -3,7 +3,7 @@ from django.shortcuts import render, redirect
 from django.urls import reverse_lazy
 from .forms import UserForm, ActionRequestsForm, UserDetailsForm, AccessReasonForm, UserEndForm, RejectForm
 from urllib.parse import urlencode
-from .models import Approver, Services, User, Request
+from .models import Approver, Services, User, Request, RequestServices
 from django.utils.encoding import force_bytes, force_text
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 
@@ -163,8 +163,13 @@ class user_details(FormView):
                         approver=approver,
                         token=token,
                         user_email=user_email)
+        import pdb; pdb.set_trace()
+        #request.services.set([Services.objects.get(id=id) for id in form.cleaned_data['services']])
+        for id in form.cleaned_data['services']:
+            RequestServices.objects.create(
+                            request_id=request.id,
+                            service_id=id)
 
-        request.services.set([Services.objects.get(id=id) for id in form.cleaned_data['services']])
         User.objects.filter(email=user_email).update(request_id=request.id)
 
         send_mails(token, request.approver, request.id, user_email)#, self.request.scheme, self.request.get_host())
@@ -244,26 +249,32 @@ class reject_access(FormView):
         return HttpResponse(t)# 'Thank you, request rejected.  Requester has been notified')
 
 
-# Prob dont need to do this as this can be done from the Admin interface.
-def action_requests(request):
-    requests_to_complete = Request.objects.filter(completed=False)
 
-    context = {'requests_to_complete': requests_to_complete}
+class action_requests(FormView):
+    template_name = 'basic-post.html'
+    form_class = ActionRequestsForm
 
-    if request.method == 'POST':
-        form = AcionRequestsForm(request.POST)
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['uid'] = self.uuid
+        return kwargs
 
-        # check whether it's valid:
-        if form.is_valid():
-            #if form.cleaned_data['access_list'] == 'yes':
+    def dispatch(self, *args, **kwargs):
+        #import pdb; pdb.set_trace()
+        self.uuid = self.kwargs['userid']
+        return super().dispatch(*args, **kwargs)
 
-            for current_user in Request.objects.filter(signed_off=True):
-                print (current_user.user_email)
-                User.objects.get_or_create(firstname='User', surname='B', email=current_user.user_email, end_date='2018-09-20')
-                #userobj.save()
+    def form_valid(self, form):
+        print ('Do something')
+        import pdb; pdb.set_trace()
+        selected_service = []
+        services_completed = form.cleaned_data['action']
 
-            return render(request, 'submitted.html')
-    else:
-        form = ActionRequestsForm()
+        for x, service_name in form.fields['action'].choices:
+            for z in services_completed:
+                if x == z:
+                    selected_service.append([x, service_name])
 
-    return render(request, 'action-requests.html', context, {'form': form})
+        print (selected_service)
+        t = render_to_string("submitted.html")
+        return HttpResponse(t)

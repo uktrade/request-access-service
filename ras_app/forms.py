@@ -1,5 +1,5 @@
 from django import forms
-from .models import Approver, Services, User, Request
+from .models import Approver, Services, User, Request, AccountsCreator, RequestServices
 
 from django.forms.widgets import CheckboxSelectMultiple
 from django.contrib.auth.forms import UserCreationForm
@@ -21,7 +21,7 @@ ACTION_REQUESTS= [
     ]
 
 ##Cant use GovUK field as there you cannot use specify a year greater then the current.
-class YearField(fields.YearField):
+class YearFieldWTF(fields.YearField):
     def __init__(self, era_boundary=None, **kwargs):
         #import pdb; pdb.set_trace()
         self.current_year = now().year + 10
@@ -43,9 +43,11 @@ class YearField(fields.YearField):
             }
         }
         options.update(kwargs)
-        super().__init__(**options)
+        #import pdb; pdb.set_trace()
 
-class SplitDateFields(fields.SplitDateField):
+        forms.IntegerField.__init__(self, **options)
+
+class SplitDateFieldsWTF(fields.SplitDateField):
    def __init__(self, *args, **kwargs):
        day_bounds_error = gettext('Day should be between 1 and 31.')
        month_bounds_error = gettext('Month should be between 1 and 12.')
@@ -61,20 +63,23 @@ class SplitDateFields(fields.SplitDateField):
                'max_value': month_bounds_error,
                'invalid': gettext('Enter month as a number.')
            }),
-           YearField(),
+           YearFieldWTF(),
        ]
        #import pdb; pdb.set_trace()
-       super().__init__(*args, **kwargs)
+
+       forms.MultiValueField.__init__(self, self.fields, *args, **kwargs)
+
+
 
 class UserForm(GOVUKForm):
-    needs_access= forms.ChoiceField(label='Are you requesting access for yourself?', choices=ACCESS_CHOICES, widget=widgets.Select())
+    needs_access = forms.ChoiceField(label='Are you requesting access for yourself?', choices=ACCESS_CHOICES, widget=widgets.Select())
 
 
 class UserEndForm(GOVUKForm):
     user_email = forms.CharField(label='Users E-mail (person who needs access)', max_length=60, widget=widgets.TextInput())
     firstname = forms.CharField(label='Users Firstname', max_length=60, widget=widgets.TextInput())
     surname = forms.CharField(label='Users Surname', max_length=60, required=False, widget=widgets.TextInput())
-    end_date = SplitDateFields()#label='End Date of Contract')
+    end_date = SplitDateFieldsWTF()#label='End Date of Contract')
     #end_date = fields.SplitDateField(label='End Date of Contract')
 
     def __init__(self, *args, **kwargs):
@@ -88,9 +93,43 @@ class UserEndForm(GOVUKForm):
             self.fields['firstname'].required = False
             self.fields['surname'].required = False
 
+        #import pdb; pdb.set_trace()
+
+def get_action_list(uuid):
+
+    full_action_list=[]
+    full_action_list_noservice = Request.objects.values_list('id', 'user_email').filter(signed_off=True, rejected=False)
+
+    for z, user_email in full_action_list_noservice:
+
+        if RequestServices.objects.filter(request_id=z):
+
+            full_action_list.append([RequestServices.objects.values_list('service_id',flat=True).filter(request_id=z), user_email, z])
+
+    #import pdb; pdb.set_trace()
+    complete_list = []
+    action_list = []
+
+    accounts_creator_services = AccountsCreator.objects.values_list('services', flat=True).filter(uuid=uuid)
+    for v in full_action_list:
+        for x in v[0]:
+            if x in accounts_creator_services:
+                action_list.append([x, v[1], v[2]])
+
+    for y, username, request_id in action_list:
+        complete_list.append([str(y), (Services.objects.get(id=y).service_name + ' - ' + username + ' - ' + str(request_id))])
+    #import pdb; pdb.set_trace()
+    return complete_list
 
 class ActionRequestsForm(GOVUKForm):
-    access_list= forms.CharField(label='Have you created all these accounts?', widget=forms.CheckboxSelectMultiple(choices=ACTION_REQUESTS))
+    def __init__(self, *args, **kwargs):
+        #import pdb; pdb.set_trace()
+        uuid = kwargs.pop('uid')
+        super().__init__(*args, **kwargs)
+        self.fields['action'].choices = get_action_list(uuid)
+
+    #access_list= forms.CharField(label='Have you created all these accounts?', widget=forms.CheckboxSelectMultiple(choices=ACTION_REQUESTS))
+    action = forms.MultipleChoiceField(label='Check which is completed', choices=[], widget=widgets.CheckboxSelectMultiple)
 
 
 def get_approver_list():
@@ -106,6 +145,7 @@ def get_service_list():
 
 class UserDetailsForm(GOVUKForm):
     services_list = get_service_list
+    #import pdb; pdb.set_trace()
     services = forms.MultipleChoiceField(label='Services you needs access to', choices=services_list, widget=widgets.CheckboxSelectMultiple)
 
 class RejectForm(GOVUKForm):

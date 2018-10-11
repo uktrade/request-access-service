@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Approver, Services, User, Request
+from .models import Approver, Services, User, Request, AccountsCreator
 # Register your models here.
 
 @admin.register(Approver)
@@ -40,3 +40,11 @@ class User_admin(admin.ModelAdmin):
 
 	# def get_requests(self, obj):
 	# 	return "\n".join([str(p.id) for p in obj.request.all()])
+
+@admin.register(AccountsCreator)
+class AccountsCreator_admin(admin.ModelAdmin):
+	list_display = ('firstname', 'surname', 'email', 'get_services', 'uuid')
+	filter_horizontal = ('services',)
+
+	def get_services(self, obj):
+		return "\n".join([p.service_name for p in obj.services.all()])
