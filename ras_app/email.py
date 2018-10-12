@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.conf import settings
-from ras_app.models import Approver, Services, User, Request
+from ras_app.models import Approver, Services, User, Request, RequestItem
 
 from notifications_python_client.notifications import NotificationsAPIClient
 
@@ -14,7 +14,8 @@ def get_approval_details(token, approval_url):
     rejected_url = ''
     services_required = []
     request_to_approve = Request.objects.get(token=token)
-    services_required_id = Request.objects.values_list('services', flat=True).filter(token=token)
+    #import pdb; pdb.set_trace()
+    services_required_id = RequestItem.objects.values_list('services', flat=True).filter(request=request_to_approve)
     for z in services_required_id:
         services_required.append(Services.objects.get(id=z).service_name)
 

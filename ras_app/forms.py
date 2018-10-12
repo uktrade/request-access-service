@@ -1,5 +1,5 @@
 from django import forms
-from .models import Approver, Services, User, Request, AccountsCreator, RequestServices
+from .models import Approver, Services, User, Request, AccountsCreator, RequestItem#, RequestServices
 
 from django.forms.widgets import CheckboxSelectMultiple
 from django.contrib.auth.forms import UserCreationForm
@@ -99,27 +99,28 @@ def get_action_list(uuid):
 
     full_action_list=[]
     full_action_list_noservice = Request.objects.values_list('id', 'user_email').filter(signed_off=True, rejected=False)
-
+    #import pdb; pdb.set_trace()
     for z, user_email in full_action_list_noservice:
 
-        if RequestServices.objects.filter(request_id=z):
+        for requestitem in RequestItem.objects.filter(request_id=z, completed=False):
+            #full_action_list.append([requestitem.id, Services.objects.get(id=requestitem.services_id).service_name  + ' - ' + user_email + ' - ' + str(z)])
+            full_action_list.append([requestitem.id, requestitem.services_id, user_email, str(z)])
 
-            full_action_list.append([RequestServices.objects.values_list('service_id',flat=True).filter(request_id=z), user_email, z])
 
-    #import pdb; pdb.set_trace()
     complete_list = []
     action_list = []
 
     accounts_creator_services = AccountsCreator.objects.values_list('services', flat=True).filter(uuid=uuid)
     for v in full_action_list:
-        for x in v[0]:
-            if x in accounts_creator_services:
-                action_list.append([x, v[1], v[2]])
-
-    for y, username, request_id in action_list:
-        complete_list.append([str(y), (Services.objects.get(id=y).service_name + ' - ' + username + ' - ' + str(request_id))])
+        for y in accounts_creator_services:
+            if v[1] == y:
+                action_list.append([v[0], Services.objects.get(id=v[1]).service_name + ' - ' + v[2] + ' - ' + v[3]])
     #import pdb; pdb.set_trace()
-    return complete_list
+    #
+    # for y, username, request_id in action_list:
+    #     complete_list.append([str(y), (Services.objects.get(id=y).service_name + ' - ' + username + ' - ' + str(request_id))])
+    #import pdb; pdb.set_trace()
+    return action_list
 
 class ActionRequestsForm(GOVUKForm):
     def __init__(self, *args, **kwargs):

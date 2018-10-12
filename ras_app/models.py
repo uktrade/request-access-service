@@ -19,7 +19,7 @@ class Services(models.Model):
 class Request(models.Model):
     requestor = models.EmailField()
     approver = models.ForeignKey(Approver, on_delete=models.CASCADE)
-    services = models.ManyToManyField(Services, through='RequestServices')
+    #services = models.ManyToManyField(Services)#, through='RequestServices')
     signed_off = models.BooleanField(default=False)
     signed_off_on = models.DateTimeField(null=True)
     reason = models.CharField(max_length=400)
@@ -29,8 +29,19 @@ class Request(models.Model):
     rejected = models.BooleanField(default=False)
     rejected_reason = models.CharField(blank=True, max_length=400)
 
+    def add_request_items(self, service_ids):
+        #import pdb; pdb.set_trace()
+        for service_id in service_ids:
+            RequestItem.objects.create(request=self, services=Services.objects.get(id=service_id))
+
     def __str__(self):
         return str(self.id)
+
+class RequestItem(models.Model):
+    request = models.ForeignKey(Request, on_delete=models.CASCADE)
+    #services = models.OneToOneField(Services, on_delete=models.CASCADE)
+    services = models.ForeignKey(Services, on_delete=models.CASCADE)
+    completed = models.BooleanField(default=False)
 
 class User(models.Model):
     firstname = models.CharField(max_length=60)
@@ -49,8 +60,8 @@ class AccountsCreator(models.Model):
     uuid = models.UUIDField(default=uuid.uuid4, editable=False)
     services = models.ManyToManyField(Services)
 
-class RequestServices(models.Model):
-    request = models.ForeignKey(Request, on_delete=models.CASCADE)
-    service = models.ForeignKey(Services, on_delete=models.CASCADE)
-    completed = models.BooleanField(default=False)
-    completed_date = models.DateTimeField(null=True)
+# class RequestServices(models.Model):
+#     request = models.ForeignKey(Request, on_delete=models.CASCADE)
+#     service = models.ForeignKey(Services, on_delete=models.CASCADE)
+#     completed = models.BooleanField(default=False)
+#     completed_date = models.DateTimeField(null=True)

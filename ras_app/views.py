@@ -3,7 +3,7 @@ from django.shortcuts import render, redirect
 from django.urls import reverse_lazy
 from .forms import UserForm, ActionRequestsForm, UserDetailsForm, AccessReasonForm, UserEndForm, RejectForm
 from urllib.parse import urlencode
-from .models import Approver, Services, User, Request, RequestServices
+from .models import Approver, Services, User, Request, RequestItem#, RequestServices
 from django.utils.encoding import force_bytes, force_text
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 
@@ -163,12 +163,17 @@ class user_details(FormView):
                         approver=approver,
                         token=token,
                         user_email=user_email)
-        import pdb; pdb.set_trace()
+        #import pdb; pdb.set_trace()
+
+        request.add_request_items(form.cleaned_data['services'])
+        #def add_item(form.cleaned_data['services']):
+        # for service_id in form.cleaned_data['services']:
+        #     RequestItem.objects.create(request=request, service=Service.objects.get(id=service_id)
         #request.services.set([Services.objects.get(id=id) for id in form.cleaned_data['services']])
-        for id in form.cleaned_data['services']:
-            RequestServices.objects.create(
-                            request_id=request.id,
-                            service_id=id)
+        # for id in form.cleaned_data['services']:
+        #     RequestServices.objects.create(
+        #                     request_id=request.id,
+        #                     service_id=id)
 
         User.objects.filter(email=user_email).update(request_id=request.id)
 
@@ -270,10 +275,8 @@ class action_requests(FormView):
         selected_service = []
         services_completed = form.cleaned_data['action']
 
-        for x, service_name in form.fields['action'].choices:
-            for z in services_completed:
-                if x == z:
-                    selected_service.append([x, service_name])
+        for z in services_completed:
+            RequestItem.objects.filter(id=z).update(completed=True)
 
         print (selected_service)
         t = render_to_string("submitted.html")

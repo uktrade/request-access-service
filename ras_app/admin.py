@@ -15,7 +15,7 @@ class service_admin(admin.ModelAdmin):
 class Request_admin(admin.ModelAdmin):
 	list_display = ('requestor', 'approver', 'completed', 'signed_off', 'signed_off_on', 'reason', 'user_email', 'get_services', 'token')
 	list_filter = ('signed_off', 'completed')
-	filter_horizontal = ('services',)
+	#filter_horizontal = ('services',)
 
 	def approver(self, obj):
 		return obj.approver.email,
