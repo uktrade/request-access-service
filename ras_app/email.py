@@ -45,15 +45,15 @@ def send_approvals_email(token, approver):
 
     print (approval_url)
 
-    # notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
-    # notifications_client.send_email_notification(
-    #     email_address=approver,
-    #     template_id=settings.EMAIL_UUID,
-    #     personalisation={
-    #         'name': approver,
-    #         'auth_link': approval_url
-    #     }
-    # )
+    notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
+    notifications_client.send_email_notification(
+        email_address=approver,
+        template_id=settings.EMAIL_UUID,
+        personalisation={
+            'name': approver,
+            'auth_link': approval_url
+        }
+    )
 
 def send_requester_email(request_id, requestor, rejection_reason):
     print ('Sending mail')
@@ -64,14 +64,14 @@ def send_requester_email(request_id, requestor, rejection_reason):
         rejection_reason = 'Your request was rejected because: ' + rejection_reason
     else:
         status = 'submitted'
-    # notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
-    # notifications_client.send_email_notification(
-    #     email_address=requestor,
-    #     template_id=settings.EMAIL_REQUESTOR_UUID,
-    #     personalisation={
-    #         'name': requestor,
-    #         'request_id': request_id,
-    #         'status': status,
-    #         'rejection_reason': rejection_reason
-    #     }
-    # )
+    notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
+    notifications_client.send_email_notification(
+        email_address=requestor,
+        template_id=settings.EMAIL_REQUESTOR_UUID,
+        personalisation={
+            'name': requestor,
+            'request_id': request_id,
+            'status': status,
+            'rejection_reason': rejection_reason
+        }
+    )
