@@ -53,6 +53,15 @@ class User(models.Model):
     def __str__(self):
         return self.email
 
+class RequestorDetails(models.Model):
+    firstname = models.CharField(max_length=60)
+    surname = models.CharField(max_length=60)
+    email = models.EmailField(max_length=60)#, unique=True)
+    #request = models.ForeignKey(Request, on_delete=models.CASCADE, blank=True, null=True)
+
+    def __str__(self):
+        return self.email
+
 class AccountsCreator(models.Model):
     firstname = models.CharField(max_length=60)
     surname = models.CharField(blank=True, max_length=60)

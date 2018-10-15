@@ -3,7 +3,7 @@ from django.shortcuts import render, redirect
 from django.urls import reverse_lazy
 from .forms import UserForm, ActionRequestsForm, UserDetailsForm, AccessReasonForm, UserEndForm, RejectForm
 from urllib.parse import urlencode
-from .models import Approver, Services, User, Request, RequestItem#, RequestServices
+from .models import Approver, Services, User, Request, RequestItem, RequestorDetails#, RequestServices
 from django.utils.encoding import force_bytes, force_text
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 
@@ -82,6 +82,14 @@ class user_end(FormView):
             'end_date': form.cleaned_data['end_date']
             },
             email=self.user_email
+            )
+
+        RequestorDetails.objects.update_or_create(
+            defaults={
+            'firstname': self.request.user.first_name,
+            'surname': self.request.user.last_name,
+            },
+            email=self.email
             )
 
         return super().form_valid(form)
