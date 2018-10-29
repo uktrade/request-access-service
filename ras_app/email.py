@@ -24,8 +24,8 @@ def get_approval_details(token, approval_url):
         'Who needs access: ' + request_to_approve.user_email + '\n' + \
         'Access to: ' + ', '.join(services_required) + '\n' + \
         'Reason: ' + request_to_approve.reason + '\n' + \
-        'Link to approve: ' + settings.DOMAIN_NAME + '/activate/' + token + '/' + '\n' + \
-        'Link to reject: ' + settings.DOMAIN_NAME + '/reject/' + token + '/' + '\n'
+        'Link to approve: ' + 'https://' + settings.DOMAIN_NAME + '/activate/' + token + '/' + '\n' + \
+        'Link to reject: ' + 'https://' + settings.DOMAIN_NAME + '/reject/' + token + '/' + '\n'
 
     return approval_url
 
