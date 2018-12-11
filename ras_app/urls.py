@@ -1,7 +1,7 @@
 from django.conf.urls import url
 from . import views
 from django.urls import path, include, re_path
-from .views import user_details, home_page, user_end, access_reason, reject_access, action_requests##, admin_override
+from .views import user_details, home_page, user_email, user_end, access_reason, reject_access, action_requests##, admin_override
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from django.views.generic import RedirectView
@@ -10,6 +10,7 @@ urlpatterns = [
     url(r'^$', RedirectView.as_view(pattern_name='home_page')),
     path('home/', login_required(home_page.as_view()), name='home_page'),
     path('auth/', include('authbroker_client.urls', namespace='authbroker')),
+    path('user-email/', user_email.as_view(), name='user_email'),
     path('user-end/', user_end.as_view(), name='user_end'),
     #re_path(r'^action-requests/(?P<token>[0-9A-Za-z][-\w]{1,36})/$',
     #    action_requests.as_view(), name='action_requests'),

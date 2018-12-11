@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 
 from django.urls import reverse_lazy
-from .forms import UserForm, ActionRequestsForm, UserDetailsForm, AccessReasonForm, UserEndForm, RejectForm
+from .forms import UserForm, ActionRequestsForm, UserDetailsForm, AccessReasonForm, UserEndForm, UserEmailForm, RejectForm
 from urllib.parse import urlencode
 from .models import Approver, Services, User, Request, RequestItem, RequestorDetails#, RequestServices
 from django.utils.encoding import force_bytes, force_text
@@ -23,6 +23,8 @@ from django.utils.crypto import get_random_string
 from django.contrib.auth.decorators import login_required
 
 # Create your views here.
+
+
 #@login_required(login_url='/landing-page/')
 class home_page(FormView):
     template_name = 'home-page.html'
@@ -33,14 +35,57 @@ class home_page(FormView):
 
         if form.cleaned_data['needs_access'] == 'behalf':
             self.behalf = True
+            self.context = {'behalf': self.behalf}
+        else:
+            #import pdb; pdb.set_trace()
+            self.context = {'email': self.request.user.email, 'user_email': self.request.user.email, 'behalf': False}
+            self.success_url = reverse_lazy('access_reason')
+            return super().form_valid(form)
 
-        self.success_url = reverse_lazy('user_end')
+        self.success_url = reverse_lazy('user_email')
         return super().form_valid(form)
 
     def get_success_url(self):
         url = super().get_success_url()
-        context = {'behalf': self.behalf}
+        #context = {'behalf': self.behalf}
+        return url + '?' + urlencode(self.context)
+
+
+#def check_user_exists(email_address):
+
+class user_email(FormView):
+    template_name = 'basic-post.html'
+    form_class = UserEmailForm
+    success_url = reverse_lazy('user_end')
+
+    def dispatch(self, request, *args, **kwargs):
+        if not reverse('home_page') in self.request.META.get('HTTP_REFERER', ''):
+            if not reverse('user_email') in self.request.META.get('HTTP_REFERER', ''):
+                return redirect('home_page')
+
+        return super().dispatch(request, *args, **kwargs)
+
+    # def get_form_kwargs(self):
+    #
+    #     kwargs = super(user_email, self).get_form_kwargs()
+    #     import pdb; pdb.set_trace()
+    #     self.behalf_status=self.request.GET['behalf']
+    #     kwargs.update({'behalf': self.behalf_status})
+    #     return kwargs
+
+    def form_valid(self, form):
+        #import pdb; pdb.set_trace()
+        self.email = self.request.user.email
+        self.user_email = form.cleaned_data['user_email']
+        self.behalf_status=self.request.GET['behalf']
+
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        url = super().get_success_url()
+        context = {'email': self.email, 'user_email': self.user_email, 'behalf': self.behalf_status}
         return url + '?' + urlencode(context)
+
 
 class user_end(FormView):
     template_name = 'basic-post.html'
@@ -48,7 +93,7 @@ class user_end(FormView):
     success_url = reverse_lazy('access_reason')#('user_details')
 
     def dispatch(self, request, *args, **kwargs):
-        if not reverse('home_page') in self.request.META.get('HTTP_REFERER', ''):
+        if not reverse('user_email') in self.request.META.get('HTTP_REFERER', ''):
             if not reverse('user_end') in self.request.META.get('HTTP_REFERER', ''):
                 return redirect('home_page')
 
@@ -57,16 +102,19 @@ class user_end(FormView):
     def get_form_kwargs(self):
 
         kwargs = super(user_end, self).get_form_kwargs()
-
+        self.email = self.request.GET['email']
+        self.user_email = self.request.GET['user_email']
         self.behalf_status=self.request.GET['behalf']
         kwargs.update({'behalf': self.behalf_status})
         return kwargs
 
     def form_valid(self, form):
-        self.email = self.request.user.email
+        #self.email = self.request.user.email
+        #import pdb; pdb.set_trace()
+
 
         if self.behalf_status == 'True':
-            self.user_email = form.cleaned_data['user_email']
+            #self.user_email = form.cleaned_data['user_email']
             firstname = form.cleaned_data['firstname']
             surname = form.cleaned_data['surname']
 
@@ -104,14 +152,36 @@ class access_reason(FormView):
     template_name = 'basic-post.html'
     form_class = AccessReasonForm
     success_url = reverse_lazy('user_details')
+    # def __init__(self,*args,**kwargs):
+    #     import pdb; pdb.set_trace()
+    #     self.email = kwargs.pop('email')
+    #     super(StylesForm,self).__init__(*args,**kwargs)
+    #def get_form_kwargs(self):
+
+        # kwargs = super(access_reason, self).get_form_kwargs()
+        # #import pdb; pdb.set_trace()
+        # self.email_status=self.request.GET['email']
+        # kwargs.update({'email': self.email_status})
+        # return kwargs
 
     def dispatch(self, request, *args, **kwargs):
+        #kwargs = super(access_reason, self).get_form_kwargs()
 
         if not reverse('user_end') in self.request.META.get('HTTP_REFERER', ''):
-            if not reverse('access_reason') in self.request.META.get('HTTP_REFERER', ''):
-                return redirect('home_page')
-
+            if not reverse('home_page') in self.request.META.get('HTTP_REFERER', ''):
+                if not reverse('access_reason') in self.request.META.get('HTTP_REFERER', ''):
+                    return redirect('home_page')
+        #import pdb; pdb.set_trace()
+        #self.email_status=self.request.GET['email']
+        #kwargs.update({'email': self.email_status})
         return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self,  **kwargs):
+        kwargs = super(access_reason, self).get_form_kwargs(**kwargs)
+        #import pdb; pdb.set_trace()
+        kwargs['email'] = self.request.GET['email']
+        kwargs['behalf'] = self.request.GET['behalf']
+        return kwargs
 
     def form_valid(self, form):
         approver = form.cleaned_data['approver']

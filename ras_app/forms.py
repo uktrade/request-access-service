@@ -24,18 +24,19 @@ ACTION_REQUESTS= [
 class YearFieldWTF(fields.YearField):
     def __init__(self, era_boundary=None, **kwargs):
         #import pdb; pdb.set_trace()
-        self.current_year = now().year + 10
-        self.century = 100 * (self.current_year // 100)
+        self.current_year = now().year
+        self.max_year = self.current_year + 10
+        self.century = 100 * (self.max_year // 100)
         if era_boundary is None:
             # 2-digit dates are a minimum of 10 years ago by default
-            era_boundary = self.current_year - self.century - 10
+            era_boundary = self.max_year - self.century - 10
         self.era_boundary = era_boundary
-        bounds_error = gettext('Year should be between 1900 and %(current_year)s.') % {
-            'current_year': self.current_year
+        bounds_error = gettext('Year should be between %(current_year)s and %(max_year)s.') % {
+            'current_year': self.current_year, 'max_year': self.max_year
         }
         options = {
-            'min_value': 1900,
-            'max_value': self.current_year,
+            'min_value': 2018,
+            'max_value': self.max_year,
             'error_messages': {
                 'min_value': bounds_error,
                 'max_value': bounds_error,
@@ -75,21 +76,26 @@ class UserForm(GOVUKForm):
     needs_access = forms.ChoiceField(label='Are you requesting access for yourself?', choices=ACCESS_CHOICES, widget=widgets.Select())
 
 
-class UserEndForm(GOVUKForm):
+class UserEmailForm(GOVUKForm):
     user_email = forms.CharField(label='Users E-mail (person who needs access)', max_length=60, widget=widgets.TextInput())
+
+
+class UserEndForm(GOVUKForm):
+    #user_email = forms.CharField(label='Users E-mail (person who needs access)', max_length=60, widget=widgets.TextInput())
     firstname = forms.CharField(label='Users Firstname', max_length=60, widget=widgets.TextInput())
     surname = forms.CharField(label='Users Surname', max_length=60, required=False, widget=widgets.TextInput())
     end_date = SplitDateFieldsWTF()#label='End Date of Contract')
     #end_date = fields.SplitDateField(label='End Date of Contract')
 
     def __init__(self, *args, **kwargs):
+        #import pdb; pdb.set_trace()
         behalf = kwargs.pop('behalf')
         super(UserEndForm, self).__init__(*args, **kwargs)
         if behalf == 'False':
-            self.fields['user_email'].widget = forms.HiddenInput()
+            #self.fields['user_email'].widget = forms.HiddenInput()
             self.fields['firstname'].widget = forms.HiddenInput()
             self.fields['surname'].widget = forms.HiddenInput()
-            self.fields['user_email'].required = False
+            #self.fields['user_email'].required = False
             self.fields['firstname'].required = False
             self.fields['surname'].required = False
 
@@ -124,7 +130,7 @@ def get_action_list(uuid):
 
 class ActionRequestsForm(GOVUKForm):
     def __init__(self, *args, **kwargs):
-        #import pdb; pdb.set_trace()
+
         uuid = kwargs.pop('uid')
         super().__init__(*args, **kwargs)
         self.fields['action'].choices = get_action_list(uuid)
@@ -133,13 +139,24 @@ class ActionRequestsForm(GOVUKForm):
     action = forms.MultipleChoiceField(label='Check which is completed', choices=[], widget=widgets.CheckboxSelectMultiple)
 
 
-def get_approver_list():
-    return Approver.objects.values_list('id', 'email')
+def get_approver_list(email_exclude, behalf_status):
+    #import pdb; pdb.set_trace()
+    # if behalf_status == 'True':
+    #     email_exclude = ''
+
+    return Approver.objects.values_list('id', 'email').exclude(email = email_exclude)
 
 class AccessReasonForm(GOVUKForm):
-    approver_list = get_approver_list
+    def __init__(self, *args, **kwargs):
+        email_exclude = kwargs.pop('email')
+        behalf_status = kwargs.pop('behalf')
+        super().__init__(*args, **kwargs)
+        self.fields['approver'].choices = get_approver_list(email_exclude, behalf_status)
+
+    #approver_list = get_approver_list
     reason = forms.CharField(label='Short description on why you need access', widget=widgets.Textarea())
-    approver = forms.ChoiceField(label='Person who will approve access', choices=approver_list, widget=widgets.Select())
+    approver = forms.ChoiceField(label='Person who will approve access', choices=[], widget=widgets.Select())
+
 
 def get_service_list():
     return Services.objects.values_list()
