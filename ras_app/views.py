@@ -56,7 +56,7 @@ class home_page(FormView):
 class user_email(FormView):
     template_name = 'basic-post.html'
     form_class = UserEmailForm
-    success_url = reverse_lazy('user_end')
+    #success_url = reverse_lazy('user_end')
 
     def dispatch(self, request, *args, **kwargs):
         if not reverse('home_page') in self.request.META.get('HTTP_REFERER', ''):
@@ -78,6 +78,14 @@ class user_email(FormView):
         self.email = self.request.user.email
         self.user_email = form.cleaned_data['user_email']
         self.behalf_status=self.request.GET['behalf']
+
+        if User.objects.filter(email=self.user_email).exists():
+            #return redirect('access_reason')
+            #context = {'email': self.email, 'user_email': self.user_email, 'behalf': self.behalf_status}
+            self.success_url = reverse_lazy('access_reason')
+            #return super().form_valid(form)
+        else:
+            self.success_url = reverse_lazy('user_end')
 
         return super().form_valid(form)
 
@@ -105,7 +113,7 @@ class user_end(FormView):
         self.email = self.request.GET['email']
         self.user_email = self.request.GET['user_email']
         self.behalf_status=self.request.GET['behalf']
-        kwargs.update({'behalf': self.behalf_status})
+        # kwargs.update({'behalf': self.behalf_status})
         return kwargs
 
     def form_valid(self, form):
@@ -168,9 +176,10 @@ class access_reason(FormView):
         #kwargs = super(access_reason, self).get_form_kwargs()
 
         if not reverse('user_end') in self.request.META.get('HTTP_REFERER', ''):
-            if not reverse('home_page') in self.request.META.get('HTTP_REFERER', ''):
-                if not reverse('access_reason') in self.request.META.get('HTTP_REFERER', ''):
-                    return redirect('home_page')
+            if not reverse('user_email') in self.request.META.get('HTTP_REFERER', ''):
+                if not reverse('home_page') in self.request.META.get('HTTP_REFERER', ''):
+                    if not reverse('access_reason') in self.request.META.get('HTTP_REFERER', ''):
+                        return redirect('home_page')
         #import pdb; pdb.set_trace()
         #self.email_status=self.request.GET['email']
         #kwargs.update({'email': self.email_status})
@@ -227,6 +236,11 @@ class user_details(FormView):
 
         return super().dispatch(request, *args, **kwargs)
 
+    def get_form_kwargs(self,  **kwargs):
+        kwargs = super(user_details, self).get_form_kwargs(**kwargs)
+        #import pdb; pdb.set_trace()
+        kwargs['user_email'] = self.request.GET['user_email']
+        return kwargs
 
     def form_valid(self, form):
         user_email = self.request.GET['user_email']
@@ -348,8 +362,8 @@ class action_requests(FormView):
         return super().dispatch(*args, **kwargs)
 
     def form_valid(self, form):
-        print ('Do something')
-        import pdb; pdb.set_trace()
+        # print ('Do something')
+        # import pdb; pdb.set_trace()
         selected_service = []
         services_completed = form.cleaned_data['action']
 
