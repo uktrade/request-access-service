@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.conf import settings
-from ras_app.models import Approver, Services, User, Request, RequestItem
+from ras_app.models import Approver, Services, User, Request, RequestItem, AccountsCreator
 
 from notifications_python_client.notifications import NotificationsAPIClient
 
@@ -24,8 +24,8 @@ def get_approval_details(token, approval_url):
         'Who needs access: ' + request_to_approve.user_email + '\n' + \
         'Access to: ' + ', '.join(services_required) + '\n' + \
         'Reason: ' + request_to_approve.reason + '\n' + \
-        'Link to approve: ' + 'https://' + settings.DOMAIN_NAME + '/activate/' + token + '/' + '\n' + \
-        'Link to reject: ' + 'https://' + settings.DOMAIN_NAME + '/reject/' + token + '/' + '\n'
+        'Link to approve: ' + settings.DOMAIN_NAME + '/activate/' + token + '/' + '\n' + \
+        'Link to reject: ' + settings.DOMAIN_NAME + '/reject/' + token + '/' + '\n'
 
     return approval_url
 
@@ -46,14 +46,14 @@ def send_approvals_email(token, approver):
     print (approval_url)
 
     notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
-    # notifications_client.send_email_notification(
-    #     email_address=approver,
-    #     template_id=settings.EMAIL_UUID,
-    #     personalisation={
-    #         'name': approver,
-    #         'auth_link': approval_url
-    #     }
-    # )
+    notifications_client.send_email_notification(
+        email_address=approver,
+        template_id=settings.EMAIL_UUID,
+        personalisation={
+            'name': approver,
+            'auth_link': approval_url
+        }
+    )
 
 def send_requester_email(request_id, requestor, rejection_reason):
     print ('Sending mail')
@@ -65,13 +65,32 @@ def send_requester_email(request_id, requestor, rejection_reason):
     else:
         status = 'submitted'
     notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
-    # notifications_client.send_email_notification(
-    #     email_address=requestor,
-    #     template_id=settings.EMAIL_REQUESTOR_UUID,
-    #     personalisation={
-    #         'name': requestor,
-    #         'request_id': request_id,
-    #         'status': status,
-    #         'rejection_reason': rejection_reason
-    #     }
-    # )
+    notifications_client.send_email_notification(
+        email_address=requestor,
+        template_id=settings.EMAIL_REQUESTOR_UUID,
+        personalisation={
+            'name': requestor,
+            'request_id': request_id,
+            'status': status,
+            'rejection_reason': rejection_reason
+        }
+    )
+
+def send_accounts_creator_email(request_id):
+    print ('Sending mail')
+    #import pdb; pdb.set_trace()
+    request_approve = RequestItem.objects.values_list('services_id').filter(request_id__in=request_id)
+    creators_id = AccountsCreator.objects.values_list('email', flat=True).filter(services__in=request_approve)
+    for x in set(creators_id):
+        print ('emailing: ')
+        print (x)
+        notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
+
+        notifications_client.send_email_notification(
+            email_address=x,
+            template_id=settings.EMAIL_ACTIVATE_UUID,
+            personalisation={
+                'name': x,
+                'ras_url': settings.DOMAIN_NAME
+            }
+        )

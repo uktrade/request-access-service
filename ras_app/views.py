@@ -9,7 +9,7 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 
 from django.template.loader import render_to_string, get_template
 from django.template import Template
-from .email import send_approvals_email, send_requester_email
+from .email import send_approvals_email, send_requester_email, send_accounts_creator_email
 from django.views.generic.edit import FormView
 
 from django.contrib.auth.tokens import default_token_generator
@@ -285,6 +285,7 @@ def admin_override(request):
 
     return redirect('/admin/')
 
+
 def activate(request, uidb64=None, token=None):
     #import pdb; pdb.set_trace()
     #try:
@@ -294,6 +295,8 @@ def activate(request, uidb64=None, token=None):
     if Request.objects.filter(token=token).exists() and not Request.objects.get(token=token).signed_off:
 
         Request.objects.filter(token=token).update(signed_off=True, signed_off_on=timezone.now())
+        #import pdb; pdb.set_trace()
+        send_accounts_creator_email(Request.objects.values_list('id', flat=True).filter(token=token))
         context = {'message': 'Thank you for your email confirmation.'}
         t = render_to_string('notify.html', context)
         return HttpResponse(t)
@@ -348,22 +351,29 @@ class reject_access(FormView):
 
 
 class action_requests(FormView):
-    template_name = 'basic-post.html'
+    template_name = 'home-page.html'
     form_class = ActionRequestsForm
 
     def get_form_kwargs(self):
+        #import pdb; pdb.set_trace()
         kwargs = super().get_form_kwargs()
-        kwargs['uid'] = self.uuid
+        self.email = self.request.user.email
+        kwargs.update({'email': self.email})
+        #kwargs['uid'] = self.uuid
+
         return kwargs
 
-    def dispatch(self, *args, **kwargs):
-        #import pdb; pdb.set_trace()
-        self.uuid = self.kwargs['userid']
-        return super().dispatch(*args, **kwargs)
+    # def dispatch(self, *args, **kwargs):
+    #     import pdb; pdb.set_trace()
+    #     self.email = self.request.user.email
+    #     kwargs.update({'email': self.email})
+    #     #self.uuid = self.kwargs['userid']
+    #     return super().dispatch(*args, kwargs)
 
     def form_valid(self, form):
         # print ('Do something')
         # import pdb; pdb.set_trace()
+
         selected_service = []
         services_completed = form.cleaned_data['action']
 

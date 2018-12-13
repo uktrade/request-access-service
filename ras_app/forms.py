@@ -113,7 +113,7 @@ class UserEndForm(GOVUKForm):
             raise forms.ValidationError('The date cannot be in the past')
         return date
 
-def get_action_list(uuid):
+def get_action_list(email):
 
     full_action_list=[]
     full_action_list_noservice = Request.objects.values_list('id', 'user_email').filter(signed_off=True, rejected=False)
@@ -128,7 +128,7 @@ def get_action_list(uuid):
     complete_list = []
     action_list = []
 
-    accounts_creator_services = AccountsCreator.objects.values_list('services', flat=True).filter(uuid=uuid)
+    accounts_creator_services = AccountsCreator.objects.values_list('services', flat=True).filter(email=email)
     for v in full_action_list:
         for y in accounts_creator_services:
             if v[1] == y:
@@ -142,10 +142,10 @@ def get_action_list(uuid):
 
 class ActionRequestsForm(GOVUKForm):
     def __init__(self, *args, **kwargs):
-
-        uuid = kwargs.pop('uid')
+        #import pdb; pdb.set_trace()
+        email = kwargs.pop('email')
         super().__init__(*args, **kwargs)
-        self.fields['action'].choices = get_action_list(uuid)
+        self.fields['action'].choices = get_action_list(email)
 
     #access_list= forms.CharField(label='Have you created all these accounts?', widget=forms.CheckboxSelectMultiple(choices=ACTION_REQUESTS))
     action = forms.MultipleChoiceField(label='Check which is completed', choices=[], widget=widgets.CheckboxSelectMultiple)
