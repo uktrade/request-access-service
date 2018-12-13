@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Approver, Services, User, Request, AccountsCreator
+from .models import Approver, Services, User, Request, RequestItem, AccountsCreator
 # Register your models here.
 
 @admin.register(Approver)
@@ -29,9 +29,16 @@ class service_admin(admin.ModelAdmin):
 
 @admin.register(User)
 class User_admin(admin.ModelAdmin):
-	list_display = ('firstname', 'surname', 'email', 'end_date', 'request')
+	list_display = ('firstname', 'surname', 'email', 'end_date', 'request', 'get_services')
 	#filter_horizontal = ('request',)
-
+	def get_services(self, obj):
+		#import pdb; pdb.set_trace()
+		user = Request.objects.values_list('id', flat=True).filter(user_email=obj.email)
+		service_accessible = RequestItem.objects.values_list('services__service_name', flat=True).filter(request_id__in=user, completed=True)
+		service_a_name = []
+		for x in service_accessible:
+			service_a_name.append(x)
+		return service_a_name
 	# def approver(self, obj):
 	# 	return obj.approver.email,
 
