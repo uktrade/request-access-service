@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.conf import settings
 from ras_app.models import Approver, Services, User, Request, RequestItem, AccountsCreator
+from collections import defaultdict
 
 from notifications_python_client.notifications import NotificationsAPIClient
 
@@ -81,10 +82,11 @@ def send_accounts_creator_email(request_id):
     #import pdb; pdb.set_trace()
     request_approve = RequestItem.objects.values_list('services_id').filter(request_id__in=request_id)
     creators_id = AccountsCreator.objects.values_list('email', flat=True).filter(services__in=request_approve)
+    notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
     for x in set(creators_id):
         print ('emailing: ')
         print (x)
-        notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
+
 
         notifications_client.send_email_notification(
             email_address=x,
@@ -94,3 +96,56 @@ def send_accounts_creator_email(request_id):
                 'ras_url': settings.DOMAIN_NAME
             }
         )
+
+
+def send_completed_email(completed_tasks):
+    print ('Sending mail')
+    notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
+    out = defaultdict(list)
+
+    for item in completed_tasks:
+        out[item['request_id']].append(item['services__service_name'])
+
+    for x in out:
+
+        confirmation_user = Request.objects.get(id=x).user_email
+        confirmation_requestor = Request.objects.get(id=x).requestor
+        services = out[x]
+
+        notifications_client.send_email_notification(
+            email_address=confirmation_user,
+            template_id=settings.EMAIL_COMPLETED_UUID,
+            personalisation={
+                'who_got_access': 'You have',
+                'name': confirmation_user,
+                'services': services
+            }
+        )
+
+        if confirmation_requestor != confirmation_user:
+            notifications_client.send_email_notification(
+            email_address=confirmation_requestor,
+            template_id=settings.EMAIL_COMPLETED_UUID,
+            personalisation={
+                'who_got_access': confirmation_requestor + ' has',
+                'name': confirmation_requestor,
+                'services': services
+            }
+        )
+
+
+def send_accounts_creator_close_email(creator, offboard, services, end_date):
+    print ('Sending mail to', creator)
+    #import pdb; pdb.set_trace()
+    notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
+
+    notifications_client.send_email_notification(
+        email_address=creator,
+        template_id=settings.EMAIL_OFFBOARD_UUID,
+        personalisation={
+            'creator': creator,
+            'offboard': offboard,
+            'services': services,
+            'end_date': end_date
+        }
+    )

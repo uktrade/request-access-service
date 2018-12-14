@@ -9,7 +9,7 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 
 from django.template.loader import render_to_string, get_template
 from django.template import Template
-from .email import send_approvals_email, send_requester_email, send_accounts_creator_email
+from .email import send_approvals_email, send_requester_email, send_accounts_creator_email, send_completed_email
 from django.views.generic.edit import FormView
 
 from django.contrib.auth.tokens import default_token_generator
@@ -374,12 +374,12 @@ class action_requests(FormView):
         # print ('Do something')
         # import pdb; pdb.set_trace()
 
-        selected_service = []
         services_completed = form.cleaned_data['action']
+        #import pdb; pdb.set_trace()
+        # for z in services_completed:
+        #     RequestItem.objects.filter(id=z).update(completed=True)
+        completed_tasks = RequestItem.objects.values('request_id','services__service_name').filter(id__in=services_completed).order_by('request_id')
+        send_completed_email(completed_tasks)
 
-        for z in services_completed:
-            RequestItem.objects.filter(id=z).update(completed=True)
-
-        print (selected_service)
         t = render_to_string("submitted.html")
         return HttpResponse(t)
