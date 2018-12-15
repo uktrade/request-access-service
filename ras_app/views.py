@@ -376,8 +376,8 @@ class action_requests(FormView):
 
         services_completed = form.cleaned_data['action']
         #import pdb; pdb.set_trace()
-        # for z in services_completed:
-        #     RequestItem.objects.filter(id=z).update(completed=True)
+        for z in services_completed:
+            RequestItem.objects.filter(id=z).update(completed=True)
         completed_tasks = RequestItem.objects.values('request_id','services__service_name').filter(id__in=services_completed).order_by('request_id')
         send_completed_email(completed_tasks)
 
