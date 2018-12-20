@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 
 from django.urls import reverse_lazy
-from .forms import UserForm, ActionRequestsForm, UserDetailsForm, AccessReasonForm, UserEndForm, UserEmailForm, RejectForm
+from .forms import UserForm, ActionRequestsForm, UserDetailsForm, AccessReasonForm, UserEndForm, UserEmailForm, RejectForm, DeactivateForm, action_request_form_factory
 from urllib.parse import urlencode
 from .models import Approver, Services, User, Request, RequestItem, RequestorDetails#, RequestServices
 from django.utils.encoding import force_bytes, force_text
@@ -11,6 +11,7 @@ from django.template.loader import render_to_string, get_template
 from django.template import Template
 from .email import send_approvals_email, send_requester_email, send_accounts_creator_email, send_completed_email
 from django.views.generic.edit import FormView
+from django.views import View
 
 from django.contrib.auth.tokens import default_token_generator
 from django.urls import reverse
@@ -383,3 +384,33 @@ class action_requests(FormView):
 
         t = render_to_string("submitted.html")
         return HttpResponse(t)
+
+class deactivate(View):
+    template_name = 'deactivate.html'
+    template_name_success = 'submitted.html'
+
+    def get(self, request, *args, **kwargs):
+        #import pdb; pdb.set_trace()
+        form_list = action_request_form_factory(request.user.email)
+        #form_list = action_request_form_factory('jayesh.patel@digital.trade.gov.uk')
+
+        return render(request, self.template_name, {'form_list': form_list})
+
+    def post(self, request, *args, **kwargs):
+
+        form_list = action_request_form_factory(request.user.email, request.POST)
+        #import pdb; pdb.set_trace()
+        #form_list[0].is_valid()
+        #form_list = action_request_form_factory(request.user.email)
+
+        if not all(form.is_valid() for form in form_list):
+            return render(request, self.template_name, {'form_list': form_list})
+        else:
+            #import pdb; pdb.set_trace()
+            for idx, val in enumerate(form_list):
+                requestid = form_list[idx].cleaned_data['deactivate']
+                if requestid:
+                    RequestItem.objects.filter(id__in=requestid).update(completed=False)
+
+           # some processing here to change update database values?
+            return render(request, self.template_name_success)
