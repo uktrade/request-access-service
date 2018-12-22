@@ -170,12 +170,12 @@ class AccessReasonForm(GOVUKForm):
     reason = forms.CharField(label='Short description on why you need access', widget=widgets.Textarea())
     approver = forms.ChoiceField(label='Person who will approve access', choices=[], widget=widgets.Select())
 
-def action_request_form_factory(post=None):
-    forms = []
-    for item in ['a', 'b', 'c']:
-         forms.append(DeactivateForm(prefix=item, post=post))
-
-    return forms
+# def action_request_form_factory(post=None):
+#     forms = []
+#     for item in ['a', 'b', 'c']:
+#          forms.append(DeactivateForm(prefix=item, post=post))
+#
+#     return forms
 
 
 def get_deactivate_list(email, user_found):
@@ -197,48 +197,24 @@ def get_deactivate_list(email, user_found):
 class DeactivateForm(GOVUKForm):
     def __init__(self, *args, **kwargs):
         #import pdb; pdb.set_trace()
-        #email = kwargs.pop('email')
-        email = 'jayesh.patel@digital.trade.gov.uk'
         self._user = kwargs.pop('user', None)
+        self._creator_email = kwargs.pop('creator_email', None)
         super().__init__(*args, **kwargs)
         #super(my_form, self).__init__(*args, **kwargs)
 
-        #users_expired = User.objects.filter(end_date__lt=dt.date.today())
-
-        #for user_found in users_expired:
-            #import pdb; pdb.set_trace()
-            # self.fields['deactivate'].choices = get_deactivate_list(email, user_found)
-            # self.fields['deactivate'].label = user_found.email
-        self.fields['deactivate'].choices = get_deactivate_list(email,  self._user.email)
+        self.fields['deactivate'].choices = get_deactivate_list(self._creator_email,  self._user.email)
         self.fields['deactivate'].label =  self._user.email
         self.fields['deactivate'].required = False
-            # self.fields['b'].choices = get_deactivate_list(email, user_found)
-            # self.fields['b'].label = user_found.email
 
-    #users_expired = User.objects.filter(end_date__lt=dt.date.today())
-    #import pdb; pdb.set_trace()
-    #for x in ['a', 'd', 'j']:
-    #Maybe able to fix with formset
-
-    # def action_request_form_factory(post=None):
-    #     forms = []
-    #     for item in users_expired:
-    #          forms.append(DeactivateForm(prefix=item, post=post))
-    #
-    #     return forms
 
     deactivate = forms.MultipleChoiceField(label=[], choices=[], widget=widgets.CheckboxSelectMultiple)
-    # d = forms.MultipleChoiceField(label=[], choices=[], widget=widgets.CheckboxSelectMultiple)
-    # j = forms.MultipleChoiceField(label=[], choices=[], widget=widgets.CheckboxSelectMultiple)
-        #b = forms.MultipleChoiceField(label=[], choices=[], widget=widgets.CheckboxSelectMultiple)
-    #forms = my_form(n)
-    #deactivate = forms.MultipleChoiceField(label=[], choices=[], widget=widgets.CheckboxSelectMultiple)
+
 
 def action_request_form_factory(creator_email, post=None):
    form_list = []
    #import pdb; pdb.set_trace()
    for user in User.objects.filter(end_date__lt=dt.date.today(), request_id__isnull=False):
-       form_list.append(DeactivateForm(post, user=user, prefix='user_{}'.format(user.id)))
+       form_list.append(DeactivateForm(post, creator_email=creator_email, user=user, prefix='user_{}'.format(user.id)))
    return form_list
 
 
