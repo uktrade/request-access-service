@@ -1,0 +1,18 @@
+<!-- howdy/templates/index.html -->
+{% extends 'ras_app_template.html' %}
+
+{% block inner_content %}
+        <div class ="page-body">
+        <form method="post">
+          {% csrf_token %}
+
+          {% for form in form_list %}
+
+            {{ form.as_rejected_id }}
+            {{ form }}
+
+          {% endfor %}
+          <input type="submit" class="button" value="Submit">
+        </form>
+      </div>
+{% endblock %}

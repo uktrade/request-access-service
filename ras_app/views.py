@@ -1,9 +1,9 @@
 from django.shortcuts import render, redirect
 
 from django.urls import reverse_lazy
-from .forms import UserForm, ActionRequestsForm, UserDetailsForm, AccessReasonForm, UserEndForm, UserEmailForm, RejectForm, DeactivateForm, action_request_form_factory
+from .forms import UserForm, ActionRequestsForm, UserDetailsForm, AccessReasonForm, UserEndForm, UserEmailForm, RejectForm, DeactivateForm, action_request_form_factory, AdditionalInfoForm, ApproveForm, RejectedReasonForm, action_rejected_form_factory
 from urllib.parse import urlencode
-from .models import Approver, Services, User, Request, RequestItem, RequestorDetails#, RequestServices
+from .models import Approver, Services, User, Request, RequestItem, RequestorDetails, Teams#, RequestServices
 from django.utils.encoding import force_bytes, force_text
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 
@@ -17,6 +17,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.urls import reverse
 from django.http import HttpResponse
 from django.conf import settings
+from django.contrib import messages
 
 from django.utils import timezone
 from django.utils.crypto import get_random_string
@@ -66,19 +67,13 @@ class user_email(FormView):
 
         return super().dispatch(request, *args, **kwargs)
 
-    # def get_form_kwargs(self):
-    #
-    #     kwargs = super(user_email, self).get_form_kwargs()
-    #     import pdb; pdb.set_trace()
-    #     self.behalf_status=self.request.GET['behalf']
-    #     kwargs.update({'behalf': self.behalf_status})
-    #     return kwargs
 
     def form_valid(self, form):
         #import pdb; pdb.set_trace()
         self.email = self.request.user.email
         self.user_email = form.cleaned_data['user_email']
         self.behalf_status=self.request.GET['behalf']
+        self.team=form.cleaned_data['team']
 
         if User.objects.filter(email=self.user_email).exists():
             #return redirect('access_reason')
@@ -92,7 +87,7 @@ class user_email(FormView):
 
     def get_success_url(self):
         url = super().get_success_url()
-        context = {'email': self.email, 'user_email': self.user_email, 'behalf': self.behalf_status}
+        context = {'email': self.email, 'user_email': self.user_email, 'team': self.team, 'behalf': self.behalf_status}
         return url + '?' + urlencode(context)
 
 
@@ -113,6 +108,7 @@ class user_end(FormView):
         kwargs = super(user_end, self).get_form_kwargs()
         self.email = self.request.GET['email']
         self.user_email = self.request.GET['user_email']
+        self.team=self.request.GET['team']
         self.behalf_status=self.request.GET['behalf']
         # kwargs.update({'behalf': self.behalf_status})
         return kwargs
@@ -120,7 +116,6 @@ class user_end(FormView):
     def form_valid(self, form):
         #self.email = self.request.user.email
         #import pdb; pdb.set_trace()
-
 
         if self.behalf_status == 'True':
             #self.user_email = form.cleaned_data['user_email']
@@ -131,12 +126,13 @@ class user_end(FormView):
             self.user_email = self.email
             firstname = self.request.user.first_name
             surname = self.request.user.last_name
-
-        self.user = User.objects.update_or_create(
+        #import pdb; pdb.set_trace()
+        User.objects.update_or_create(
             defaults={
             'firstname': firstname,
             'surname': surname,
-            'end_date': form.cleaned_data['end_date']
+            'end_date': form.cleaned_data['end_date'],
+            'team': Teams.objects.get(id=self.team)
             },
             email=self.user_email
             )
@@ -196,11 +192,13 @@ class access_reason(FormView):
     def form_valid(self, form):
         approver = form.cleaned_data['approver']
         reason=form.cleaned_data['reason']
+        #team=form.cleaned_data['team']
         self.context = {
             'email': self.request.GET['email'],
             'user_email': self.request.GET['user_email'],
             'behalf': self.request.GET['behalf'],
             'approver': approver,
+            #'team': team,
             'reason': reason
             }
 
@@ -222,8 +220,9 @@ def send_mails(token, approver, request_id, user_email):#, protocol, domain):
     #uidb64 = urlsafe_base64_encode(force_bytes(request_id)).decode()
     # activation_url  = '/activate/' + token + '/'
     # activate_url = "{0}://{1}{2}".format(protocol, domain, activation_url)
-    send_approvals_email(token, str(approver))
-    send_requester_email(str(request_id), str(user_email), '')
+    #send_approvals_email(token, str(approver))
+    send_approvals_email(str(request_id), str(approver))
+    #send_requester_email(str(request_id), str(user_email), '')
 
 class user_details(FormView):
     template_name = 'basic-post.html'
@@ -248,6 +247,7 @@ class user_details(FormView):
         requestor = self.request.GET['email']
         behalf = self.request.GET['behalf']
         approver = Approver.objects.get(id=self.request.GET['approver'])
+        #team=self.request.GET['team']
         reason = self.request.GET['reason']
         token = get_token()
         request = Request.objects.create(
@@ -255,6 +255,7 @@ class user_details(FormView):
                         reason=reason,
                         approver=approver,
                         token=token,
+                        #team=team,
                         user_email=user_email)
         #import pdb; pdb.set_trace()
 
@@ -268,13 +269,52 @@ class user_details(FormView):
         #                     request_id=request.id,
         #                     service_id=id)
 
+        #WHILST TESTING
         User.objects.filter(email=user_email).update(request_id=request.id)
 
+        #WHILST TESTING
         send_mails(token, request.approver, request.id, user_email)#, self.request.scheme, self.request.get_host())
+        ga = ''
+        paas = ''
+        #import pdb; pdb.set_trace()
+        if RequestItem.objects.filter(request_id=request.id, services__service_name='google analytics'):
+            #return redirect('additional_info')
+            self.request_id = request.id
+            self.success_url = reverse_lazy('additional_info')
+
+            return super().form_valid(form)
 
         t = render_to_string("submitted.html")
 
         return HttpResponse(t)
+
+    def get_success_url(self):
+        url = super().get_success_url()
+        #import pdb; pdb.set_trace()
+        context = {'request_id': self.request_id}
+        return url + '?' + urlencode(context)
+
+class additional_info(FormView):
+    template_name = 'basic-post.html'
+    form_class = AdditionalInfoForm
+
+
+    def dispatch(self, request, *args, **kwargs):
+        #import pdb; pdb.set_trace()
+        #self.token =  kwargs['token']
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self,  **kwargs):
+        kwargs = super(additional_info, self).get_form_kwargs(**kwargs)
+        #import pdb; pdb.set_trace()
+        self.request_id = self.request.GET['request_id']
+        return kwargs
+
+    def form_valid(self, form):
+        RequestItem.objects.filter(request_id=self.request_id, services__service_name='google analytics').update(additional_info=form.cleaned_data['additional_info'])
+        t = render_to_string("submitted.html")#, message)
+        return HttpResponse(t)# 'Thank you, request rejected.  Requester has been notified')
 
 
 def admin_override(request):
@@ -413,4 +453,84 @@ class deactivate(View):
                     RequestItem.objects.filter(id__in=requestid).update(completed=False)
 
            # some processing here to change update database values?
+            return render(request, self.template_name_success)
+
+
+class approve(FormView):
+    template_name = 'approve.html'
+    form_class = ApproveForm
+
+    def get_form_kwargs(self):
+        #import pdb; pdb.set_trace()
+        kwargs = super().get_form_kwargs()
+        self.email = self.request.user.email
+        kwargs.update({'email': self.email})
+
+        return kwargs
+
+
+    def dispatch(self, *args, **kwargs):
+        #import pdb; pdb.set_trace()
+        self.email = self.request.user.email
+        items_to_approve = Request.objects.filter(approver_id=Approver.objects.get(email=self.email).id).exclude(signed_off=True).exclude(rejected=True)
+        if not items_to_approve:
+            messages.info(self.request, 'You have no items to approve')
+
+        return super().dispatch(*args, kwargs)
+
+    def form_valid(self, form):
+        # print ('Do something')
+        #import pdb; pdb.set_trace()
+
+        requests_to_approve=form.cleaned_data['approve']
+        requests_rejected=form.cleaned_data['reject']
+        # Do approvals updates in DB + stop selecting approve and reject check box
+
+        if requests_to_approve in [requests_rejected]:
+            #self.success_url = reverse_lazy('approve')
+            messages.info(self.request, 'You can not approve and disapprove same item')
+            return redirect('approve')#super().form_valid(form)
+            #return HttpResponseRedirect('/approve/')
+
+        Request.objects.filter(id__in=requests_to_approve).update(signed_off=True, signed_off_on=timezone.now())
+
+        if requests_rejected:
+            self.rejected_ids = requests_rejected
+            self.success_url = reverse_lazy('rejected_reason')
+            return super().form_valid(form)
+
+        t = render_to_string("submitted.html")
+        return HttpResponse(t)
+
+    def get_success_url(self):
+        url = super().get_success_url()
+        #import pdb; pdb.set_trace()
+        rej = ','.join(self.rejected_ids)
+        context = {'rejected_ids': rej}
+        return url + '?' + urlencode(context)
+
+class rejected_reason(View):
+    template_name = 'rejected-reason.html'
+    template_name_success = 'submitted.html'
+
+    def get(self, request, *args, **kwargs):
+        #import pdb; pdb.set_trace()
+        form_list = action_rejected_form_factory(request.GET['rejected_ids'])
+
+        return render(request, self.template_name, {'form_list': form_list})
+
+
+    def post(self, request, *args, **kwargs):
+        form_list = action_rejected_form_factory(request.GET['rejected_ids'], request.POST)
+
+        if not all(form.is_valid() for form in form_list):
+            return render(request, self.template_name, {'form_list': form_list})
+        else:
+            #import pdb; pdb.set_trace()
+            for idx, val in enumerate(form_list):
+                requestid = form_list[idx].fields['rejected_reason'].label_suffix
+                rejected_reason = form_list[idx].cleaned_data['rejected_reason']
+                Request.objects.filter(id=requestid).update(rejected=True, rejected_reason=rejected_reason)
+                send_requester_email(requestid , Request.objects.get(id=requestid).approver.email, rejected_reason)
+
             return render(request, self.template_name_success)

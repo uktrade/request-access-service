@@ -2,7 +2,7 @@ import datetime as dt
 
 from django import forms
 
-from .models import Approver, Services, User, Request, AccountsCreator, RequestItem#, RequestServices
+from .models import Approver, Services, User, Request, AccountsCreator, RequestItem, Teams
 
 from django.forms.widgets import CheckboxSelectMultiple
 from django.contrib.auth.forms import UserCreationForm
@@ -23,65 +23,24 @@ ACTION_REQUESTS= [
     ('no', 'No'),
     ]
 
-##Cant use GovUK field as there you cannot use specify a year greater then the current.
-# class YearFieldWTF(fields.YearField):
-#     def __init__(self, era_boundary=None, **kwargs):
-#         #import pdb; pdb.set_trace()
-#         self.current_year = now().year
-#         self.max_year = self.current_year + 10
-#         self.century = 100 * (self.max_year // 100)
-#         if era_boundary is None:
-#             # 2-digit dates are a minimum of 10 years ago by default
-#             era_boundary = self.max_year - self.century - 10
-#         self.era_boundary = era_boundary
-#         bounds_error = gettext('Year should be between %(current_year)s and %(max_year)s.') % {
-#             'current_year': self.current_year, 'max_year': self.max_year
-#         }
-#         options = {
-#             'min_value': 2018,
-#             'max_value': self.max_year,
-#             'error_messages': {
-#                 'min_value': bounds_error,
-#                 'max_value': bounds_error,
-#                 'invalid': gettext('Enter year as a number.'),
-#             }
-#         }
-#         options.update(kwargs)
-#         #import pdb; pdb.set_trace()
-#
-#         forms.IntegerField.__init__(self, **options)
-#
-# class SplitDateFieldsWTF(fields.SplitDateField):
-#    def __init__(self, *args, **kwargs):
-#        day_bounds_error = gettext('Day should be between 1 and 31.')
-#        month_bounds_error = gettext('Month should be between 1 and 12.')
-#
-#        self.fields = [
-#            forms.IntegerField(min_value=1, max_value=31, error_messages={
-#                'min_value': day_bounds_error,
-#                'max_value': day_bounds_error,
-#                'invalid': gettext('Enter day as a number.')
-#            }),
-#            forms.IntegerField(min_value=1, max_value=12, error_messages={
-#                'min_value': month_bounds_error,
-#                'max_value': month_bounds_error,
-#                'invalid': gettext('Enter month as a number.')
-#            }),
-#            YearFieldWTF(),
-#        ]
-#        #import pdb; pdb.set_trace()
-#
-#        forms.MultiValueField.__init__(self, self.fields, *args, **kwargs)
-
 
 
 class UserForm(GOVUKForm):
     needs_access = forms.ChoiceField(label='Are you requesting access for yourself?', choices=ACCESS_CHOICES, widget=widgets.Select())
 
 
-class UserEmailForm(GOVUKForm):
-    user_email = forms.CharField(label='Users E-mail (person who needs access)', max_length=60, widget=widgets.TextInput())
+def get_teams_list():
+    #import pdb; pdb.set_trace()
+    return Teams.objects.values_list('id', 'team_name').order_by('team_name')
 
+class UserEmailForm(GOVUKForm):
+    def __init__(self, *args, **kwargs):
+        #behalf_status = kwargs.pop('behalf')
+        super().__init__(*args, **kwargs)
+        self.fields['team'].choices = get_teams_list()
+
+    user_email = forms.CharField(label='Users E-mail (person who needs access)', max_length=60, widget=widgets.TextInput())
+    team = forms.ChoiceField(label='Which team:', choices=[], widget=widgets.Select())
 
 class UserEndForm(GOVUKForm):
     #user_email = forms.CharField(label='Users E-mail (person who needs access)', max_length=60, widget=widgets.TextInput())
@@ -114,6 +73,14 @@ class UserEndForm(GOVUKForm):
             raise forms.ValidationError('The date cannot be in the past')
         return date
 
+
+class AdditionalInfoForm(GOVUKForm):
+    #services_list = get_service_list
+    #import pdb; pdb.set_trace()
+    additional_info = forms.CharField(label='List GA access', max_length=60, widget=widgets.TextInput())
+
+
+
 def get_action_list(email):
 
     full_action_list=[]
@@ -133,7 +100,14 @@ def get_action_list(email):
     for v in full_action_list:
         for y in accounts_creator_services:
             if v[1] == y:
-                action_list.append([v[0], Services.objects.get(id=v[1]).service_name + ' - ' + v[2] + ' - ' + v[3]])
+                #import pdb; pdb.set_trace()
+                action_list.append([v[0],
+                Services.objects.get(id=v[1]).service_name
+                + ' - ' + 'User: ['
+                + v[2] + '] - Request ID: ['
+                + v[3]
+                + '] - ' + 'Team: [' + User.objects.get(email=v[2]).team.team_name  + ']'#Teams.objects.get(id=User.objects.get(email=v[2]).team_id).team_name
+                ])
     #import pdb; pdb.set_trace()
     #
     # for y, username, request_id in action_list:
@@ -159,16 +133,19 @@ def get_approver_list(email_exclude, behalf_status):
 
     return Approver.objects.values_list('id', 'email').exclude(email = email_exclude)
 
+
 class AccessReasonForm(GOVUKForm):
     def __init__(self, *args, **kwargs):
         email_exclude = kwargs.pop('email')
         behalf_status = kwargs.pop('behalf')
         super().__init__(*args, **kwargs)
         self.fields['approver'].choices = get_approver_list(email_exclude, behalf_status)
+        #self.fields['team'].choices = get_teams_list()
 
     #approver_list = get_approver_list
-    reason = forms.CharField(label='Short description on why you need access', widget=widgets.Textarea())
-    approver = forms.ChoiceField(label='Person who will approve access', choices=[], widget=widgets.Select())
+    reason = forms.CharField(label='Short description on why you need access:', widget=widgets.Textarea())
+    #team = forms.ChoiceField(label='Which team:', choices=[], widget=widgets.Select())
+    approver = forms.ChoiceField(label='Person who will approve access:', choices=[], widget=widgets.Select())
 
 # def action_request_form_factory(post=None):
 #     forms = []
@@ -218,6 +195,50 @@ def action_request_form_factory(creator_email, post=None):
    return form_list
 
 
+def get_approve_list(email):
+    #import pdb; pdb.set_trace()
+    # if behalf_status == 'True':
+    #     email_exclude = ''
+    approve_list = []
+
+    request_list = Request.objects.values_list('id', 'user_email').filter(approver_id=Approver.objects.get(email=email).id).exclude(signed_off=True).exclude(rejected=True)
+    for id, email in request_list:
+        services_required = RequestItem.objects.values_list('services__service_name', flat=True).filter(request_id=id)
+        services_required_as_str = ''
+        for x in services_required:
+            services_required_as_str+= x + ', '
+        user_team = User.objects.values_list('team__team_name', flat=True).filter(email=email)
+        services_per_user = 'User: [' + email + '] in team: [' + user_team[0] + '] has requested access to services: [' + services_required_as_str + ']'
+
+        approve_list.append([id, services_per_user])
+
+
+    return approve_list
+
+class ApproveForm(GOVUKForm):
+    def __init__(self, *args, **kwargs):
+        #import pdb; pdb.set_trace()
+        email = kwargs.pop('email')
+        super().__init__(*args, **kwargs)
+
+        self.fields['approve'].choices = get_approve_list(email)
+        self.fields['approve'].required = False
+        self.fields['reject'].choices = get_approve_list(email)
+        self.fields['reject'].required = False
+
+    #access_list= forms.CharField(label='Have you created all these accounts?', widget=forms.CheckboxSelectMultiple(choices=ACTION_REQUESTS))
+    approve = forms.MultipleChoiceField(label='Check which to approve', choices=[], widget=widgets.CheckboxSelectMultiple)
+    reject = forms.MultipleChoiceField(label='Check which to reject', choices=[], widget=widgets.CheckboxSelectMultiple)
+
+
+def get_approver_list(email_exclude, behalf_status):
+    #import pdb; pdb.set_trace()
+    # if behalf_status == 'True':
+    #     email_exclude = ''
+
+    return Approver.objects.values_list('id', 'email').exclude(email = email_exclude)
+
+
 def get_service_list(user_email):
 
     #approved_items = Request.objects.values_list('id', flat=True).filter(user_email=user_email, completed=True)
@@ -229,6 +250,40 @@ def get_service_list(user_email):
 
     return services_list
 
+
+class RejectedReasonForm(GOVUKForm):
+    #import pdb; pdb.set_trace()
+
+    def __init__(self, *args, **kwargs):
+        self._rejected_id = kwargs.pop('id', None)
+        super().__init__(*args, **kwargs)
+        #import pdb; pdb.set_trace()
+        #services_required_as_str = []
+        services_required = ', '.join(RequestItem.objects.values_list('services__service_name', flat=True).filter(request_id=self._rejected_id))
+        # for x in services_required:
+        #     services_required_as_str.append(x)
+        rejected_user = Request.objects.get(id=self._rejected_id).user_email
+        rejected_reason = "[" + \
+                            rejected_user + \
+                            "] from team [" + \
+                            User.objects.get(email=rejected_user).team.team_name + \
+                            "] wants access to [" + \
+                            services_required + \
+                            "]; please enter the reason for rejection:"
+        self.fields['rejected_reason'].label = rejected_reason
+        self.fields['rejected_reason'].label_suffix = self._rejected_id
+
+    rejected_reason = forms.CharField(label=[], max_length=60, widget=widgets.TextInput())
+
+
+def action_rejected_form_factory(rejected_ids, post=None):
+   form_list = []
+   #import pdb; pdb.set_trace()
+   reject = rejected_ids.split(',')
+   for id in reject:
+
+       form_list.append(RejectedReasonForm(post, id=id, prefix='id_{}'.format(id)))
+   return form_list
 
 class UserDetailsForm(GOVUKForm):
     #services_list = get_service_list

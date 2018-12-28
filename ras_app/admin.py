@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Approver, Services, User, Request, RequestItem, AccountsCreator
+from .models import Approver, Services, User, Request, RequestItem, AccountsCreator, Teams
 # Register your models here.
 
 @admin.register(Approver)
@@ -29,7 +29,7 @@ class service_admin(admin.ModelAdmin):
 
 @admin.register(User)
 class User_admin(admin.ModelAdmin):
-	list_display = ('firstname', 'surname', 'email', 'end_date', 'request', 'get_services')
+	list_display = ('firstname', 'surname', 'get_team', 'email', 'end_date', 'request', 'get_services')
 	#filter_horizontal = ('request',)
 	def get_services(self, obj):
 		#import pdb; pdb.set_trace()
@@ -45,6 +45,9 @@ class User_admin(admin.ModelAdmin):
 	def requests_submitted(self, obj):
 		return str(obj.request.id)
 
+	def get_team(self, obj):
+		return (obj.team.team_name)
+
 	# def get_requests(self, obj):
 	# 	return "\n".join([str(p.id) for p in obj.request.all()])
 
@@ -55,3 +58,7 @@ class AccountsCreator_admin(admin.ModelAdmin):
 
 	def get_services(self, obj):
 		return "\n".join([p.service_name for p in obj.services.all()])
+
+@admin.register(Teams)
+class teams_admin(admin.ModelAdmin):
+	list_display = ('id', 'team_name')
