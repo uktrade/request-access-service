@@ -18,7 +18,7 @@ def get_approval_details(request_id):
     items_to_approve = RequestItem.objects.values_list('services__service_name', flat=True).filter(request_id=request_id)
     items_to_approve_as_lst = []
     for x in items_to_approve:
-        if x == 'google analytics':
+        if x in ['google analytics', 'github']:
             #import pdb; pdb.set_trace()
             items_to_approve_as_lst.append(x + ' - ' + RequestItem.objects.get(request_id=request_id,services__service_name=x).additional_info)
         else:
@@ -147,7 +147,7 @@ def send_completed_email(completed_tasks):
         confirmation_user = Request.objects.get(id=x).user_email
         confirmation_requestor = Request.objects.get(id=x).requestor
 
-        if out[x][0] == 'google analytics':
+        if out[x][0] in ['google analytics', 'github']:
             services = '[' + out[x][0] + ' - ' + RequestItem.objects.get(request_id=x, services__service_name=out[x][0]).additional_info + ']'
         else:
             services = out[x]

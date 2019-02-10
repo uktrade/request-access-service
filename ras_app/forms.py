@@ -1,4 +1,5 @@
 import datetime as dt
+import json
 
 from django import forms
 
@@ -88,8 +89,35 @@ class UserEndForm(GOVUKForm):
 class AdditionalInfoForm(GOVUKForm):
     #services_list = get_service_list
     #import pdb; pdb.set_trace()
-    additional_info = forms.CharField(label='List GA access', max_length=60, widget=widgets.TextInput())
+    ga_info = forms.CharField(label='List GA access', max_length=60, widget=widgets.TextInput())
+    github_info = forms.CharField(label='GitHub Username', max_length=60, widget=widgets.TextInput())
 
+    def __init__(self, *args, **kwargs):
+        #import pdb; pdb.set_trace()
+        services = kwargs.pop('services')
+        super(AdditionalInfoForm, self).__init__(*args, **kwargs)
+
+        service_objects = json.loads(services)
+        # for service, value in services.items():
+        #     print (value)
+
+        for service, value in service_objects.items():
+            if value == 'False' and service == 'ga':
+                self.fields['ga_info'].widget = forms.HiddenInput()
+                self.fields['ga_info'].required = False
+
+            if value == 'False' and service == 'github':
+                self.fields['github_info'].widget = forms.HiddenInput()
+                self.fields['github_info'].required = False
+
+
+        # if service == 'google analytics':
+        #     #self.fields['user_email'].widget = forms.HiddenInput()
+        #     self.fields['additional_info'].widget = forms.HiddenInput()
+        #     self.fields['surname'].widget = forms.HiddenInput()
+        #     #self.fields['user_email'].required = False
+        #     self.fields['firstname'].required = False
+        #     self.fields['surname'].required = False
 
 
 def get_action_list(email):
@@ -113,7 +141,7 @@ def get_action_list(email):
             if v[1] == y:
                 #import pdb; pdb.set_trace()
                 service_item = Services.objects.get(id=v[1]).service_name
-                if service_item == 'google analytics':
+                if service_item in ['google analytics', 'github']:
                     service_item = '[' + service_item + ' - ' + RequestItem.objects.get(request_id=v[3], services__service_name=service_item).additional_info + ']'
 
                 action_list.append([v[0],
@@ -221,7 +249,7 @@ def get_approve_list(email):
         services_required = RequestItem.objects.values_list('services__service_name', flat=True).filter(request_id=id)
         services_required_as_str = ''
         for x in services_required:
-            if x == 'google analytics':
+            if x in ['google analytics', 'github']:
                 services_required_as_str+= '['+ x + ' - ' + RequestItem.objects.get(request_id=id, services__service_name=x).additional_info + '], '
             else:
                 services_required_as_str+= x + ', '
@@ -330,4 +358,4 @@ class RejectForm(GOVUKForm):
 #         self.fields['team'].choices = get_status_list()
 #
 #     team = forms.ChoiceField(label='Which team:', choices=[], widget=widgets.Select())
-# 
+#

@@ -1,3 +1,4 @@
+import json
 from django.shortcuts import render, redirect
 
 from django.urls import reverse_lazy
@@ -320,18 +321,36 @@ class user_details(FormView):
         # google_analytics_id = Services.objects.get(service_name='google analytics')
         # if google_analytics_id.id not in form.cleaned_data['services']:
             # send_mails(token, request.approver, request.id, user_email)#, self.request.scheme, self.request.get_host())
-        ga = ''
+        ga = False
+        github = False
         paas = ''
+        self.service = ''
         #import pdb; pdb.set_trace()
         if RequestItem.objects.filter(request_id=request.id, services__service_name='google analytics'):
+            ga = True
+
+        if RequestItem.objects.filter(request_id=request.id, services__service_name='github'):
+            github = True
+
+        if ga or github:
             #return redirect('additional_info')
             self.request_id = request.id
             self.approver = request.approver
+            self.services = '{"ga": "' + str(ga) + '", "github": "' + str(github) + '"}'
             self.success_url = reverse_lazy('additional_info')
 
             return super().form_valid(form)
 
-        send_mails(token, request.approver, request.id, user_email)
+        # if RequestItem.objects.filter(request_id=request.id, services__service_name='github'):
+        #     #return redirect('additional_info')
+        #     self.request_id = request.id
+        #     self.approver = request.approver
+        #     self.service = 'github'
+        #     self.success_url = reverse_lazy('additional_info')
+        #
+        #     return super().form_valid(form)
+
+        ###########send_mails(token, request.approver, request.id, user_email)
         t = render_to_string("submitted.html")
 
         return HttpResponse(t)
@@ -339,31 +358,53 @@ class user_details(FormView):
     def get_success_url(self):
         url = super().get_success_url()
         #import pdb; pdb.set_trace()
-        context = {'request_id': self.request_id, 'approver': self.approver}
+        context = {'request_id': self.request_id, 'approver': self.approver, 'services': self.services}
         return url + '?' + urlencode(context)
 
 class additional_info(FormView):
     template_name = 'basic-post.html'
     form_class = AdditionalInfoForm
 
+    # def get_form_kwargs(self):
+    #     #import pdb; pdb.set_trace()
+    #     kwargs = super().get_form_kwargs()
+    #     self.email = self.request.user.email
+    #     kwargs.update({'email': self.email})
+    #     #kwargs['uid'] = self.uuid
+    #
+    #     return kwargs
 
-    def dispatch(self, request, *args, **kwargs):
+    # def dispatch(self, request, *args, **kwargs):
+    #     # import pdb; pdb.set_trace()
+    #     # self.services =  kwargs['services']
+    #
+    #     return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        #kwargs = super(additional_info, self).get_form_kwargs(**kwargs)
         #import pdb; pdb.set_trace()
-        #self.token =  kwargs['token']
-
-        return super().dispatch(request, *args, **kwargs)
-
-    def get_form_kwargs(self,  **kwargs):
-        kwargs = super(additional_info, self).get_form_kwargs(**kwargs)
-        #import pdb; pdb.set_trace()
+        kwargs = super().get_form_kwargs()
         self.request_id = self.request.GET['request_id']
         self.approver = self.request.GET['approver']
+        self.services = self.request.GET['services']
+        kwargs.update({'services': self.services})
         return kwargs
 
     def form_valid(self, form):
-        RequestItem.objects.filter(request_id=self.request_id, services__service_name='google analytics').update(additional_info=form.cleaned_data['additional_info'])
-        send_approvals_email(str(self.request_id), str(self.approver))
-        send_end_user_email(str(self.request_id), str(self.approver))
+        service_objects = json.loads(self.services)
+        #import pdb; pdb.set_trace()
+        for service, value in service_objects.items():
+            if value == 'True' and service == 'ga':
+                RequestItem.objects.filter(request_id=self.request_id, services__service_name='google analytics').update(additional_info=form.cleaned_data['ga_info'])
+
+            if value == 'True' and service == 'github':
+                RequestItem.objects.filter(request_id=self.request_id, services__service_name='github').update(additional_info=form.cleaned_data['github_info'])
+        #if self.service == 'google analytics':
+            #RequestItem.objects.filter(request_id=self.request_id, services__service_name='google analytics').update(additional_info=form.cleaned_data['ga_info'])
+
+
+        ###############send_approvals_email(str(self.request_id), str(self.approver))
+        ###############send_end_user_email(str(self.request_id), str(self.approver))
         t = render_to_string("submitted.html")#, message)
         return HttpResponse(t)# 'Thank you, request rejected.  Requester has been notified')
 
@@ -602,7 +643,7 @@ class request_status(generic.ListView):
         #context_object_name = 'teams'
         reqs_not_appr = Request.objects.values_list('id','approver__email','requestitem__services__service_name').filter(user_email=self.request.user.email, signed_off=False)
         for req_id, approver, service in  reqs_not_appr:
-            if service ==  'google analytics':
+            if service in ['google analytics', 'github']:
                 #import pdb; pdb.set_trace()
                 formatted_reqs_not_appr.append('Request id: ' + str(req_id) +
                     ', Approver: ' + approver +
@@ -629,7 +670,7 @@ class request_status(generic.ListView):
             for x in AccountsCreator.objects.values_list('email',flat=True).filter(services__id=item['services_id']):
                 svc_admins.append(x)
             #import pdb; pdb.set_trace()
-            if Services.objects.get(id=item['services_id']).service_name ==  'google analytics':
+            if Services.objects.get(id=item['services_id']).service_name in ['google analytics', 'github']:
                 #import pdb; pdb.set_trace()
                 service = Services.objects.get(
                             id=item['services_id']).service_name + ' - ' + RequestItem.objects.get(
