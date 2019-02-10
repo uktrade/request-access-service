@@ -350,7 +350,7 @@ class user_details(FormView):
         #
         #     return super().form_valid(form)
 
-        ###########send_mails(token, request.approver, request.id, user_email)
+        send_mails(token, request.approver, request.id, user_email)
         t = render_to_string("submitted.html")
 
         return HttpResponse(t)
@@ -403,8 +403,8 @@ class additional_info(FormView):
             #RequestItem.objects.filter(request_id=self.request_id, services__service_name='google analytics').update(additional_info=form.cleaned_data['ga_info'])
 
 
-        ###############send_approvals_email(str(self.request_id), str(self.approver))
-        ###############send_end_user_email(str(self.request_id), str(self.approver))
+        send_approvals_email(str(self.request_id), str(self.approver))
+        send_end_user_email(str(self.request_id), str(self.approver))
         t = render_to_string("submitted.html")#, message)
         return HttpResponse(t)# 'Thank you, request rejected.  Requester has been notified')
 
