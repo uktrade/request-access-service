@@ -1,0 +1,11 @@
+{
+  "teams":
+      [
+        {
+          "tools": "False",
+          "lite": "True",
+          "datahub": "False",
+          "trade remedies": "False"
+        }
+      ]
+}

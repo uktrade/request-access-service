@@ -1,17 +1,17 @@
 from django.shortcuts import render, redirect
 
 from django.urls import reverse_lazy
-from .forms import UserForm, ActionRequestsForm, UserDetailsForm, AccessReasonForm, UserEndForm, UserEmailForm, RejectForm, DeactivateForm, action_request_form_factory, AdditionalInfoForm, ApproveForm, RejectedReasonForm, action_rejected_form_factory
+from .forms import UserForm, ActionRequestsForm, AddSelfForm, RejectForm, UserDetailsForm, AccessReasonForm, UserEndForm, UserEmailForm, DeactivateForm, action_request_form_factory, AdditionalInfoForm, ApproveForm, RejectedReasonForm, action_rejected_form_factory
 from urllib.parse import urlencode
-from .models import Approver, Services, User, Request, RequestItem, RequestorDetails, Teams#, RequestServices
+from .models import Approver, Services, User, Request, RequestItem, RequestorDetails, Teams, AccountsCreator#, RequestServices
 from django.utils.encoding import force_bytes, force_text
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 
 from django.template.loader import render_to_string, get_template
 from django.template import Template
-from .email import send_approvals_email, send_requester_email, send_accounts_creator_email, send_completed_email
+from .email import send_approvals_email, send_requester_email, send_accounts_creator_email, send_completed_email, send_end_user_email
 from django.views.generic.edit import FormView
-from django.views import View
+from django.views import View, generic
 
 from django.contrib.auth.tokens import default_token_generator
 from django.urls import reverse
@@ -41,7 +41,15 @@ class home_page(FormView):
         else:
             #import pdb; pdb.set_trace()
             self.context = {'email': self.request.user.email, 'user_email': self.request.user.email, 'behalf': False}
-            self.success_url = reverse_lazy('access_reason')
+            #Check if user exists.
+
+            if User.objects.filter(email=self.request.user.email).exists():
+                self.success_url = reverse_lazy('access_reason')
+            else:
+                #Add user to DB
+                self.success_url = reverse_lazy('add_self')
+
+
             return super().form_valid(form)
 
         self.success_url = reverse_lazy('user_email')
@@ -53,7 +61,40 @@ class home_page(FormView):
         return url + '?' + urlencode(self.context)
 
 
-#def check_user_exists(email_address):
+class add_self(FormView):
+    template_name = 'basic-post.html'
+    form_class =AddSelfForm
+    #success_url = reverse_lazy('user_end')
+
+    def dispatch(self, request, *args, **kwargs):
+        if not reverse('home_page') in self.request.META.get('HTTP_REFERER', ''):
+            if not reverse('add_self') in self.request.META.get('HTTP_REFERER', ''):
+                return redirect('home_page')
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        #import pdb; pdb.set_trace()
+        self.behalf_status = self.request.GET['behalf']
+
+        User.objects.update_or_create(
+            defaults={
+            'firstname': self.request.user.first_name,
+            'surname': self.request.user.last_name,
+            'end_date': form.cleaned_data['end_date'],
+            'team': Teams.objects.get(id=form.cleaned_data['team'])
+            },
+            email=self.request.user.email
+            )
+        self.success_url = reverse_lazy('access_reason')
+
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        url = super().get_success_url()
+        context = {'email': self.request.user.email, 'user_email': self.request.user.email, 'behalf': self.behalf_status}
+        return url + '?' + urlencode(context)
+
 
 class user_email(FormView):
     template_name = 'basic-post.html'
@@ -175,8 +216,9 @@ class access_reason(FormView):
         if not reverse('user_end') in self.request.META.get('HTTP_REFERER', ''):
             if not reverse('user_email') in self.request.META.get('HTTP_REFERER', ''):
                 if not reverse('home_page') in self.request.META.get('HTTP_REFERER', ''):
-                    if not reverse('access_reason') in self.request.META.get('HTTP_REFERER', ''):
-                        return redirect('home_page')
+                    if not reverse('add_self') in self.request.META.get('HTTP_REFERER', ''):
+                        if not reverse('access_reason') in self.request.META.get('HTTP_REFERER', ''):
+                            return redirect('home_page')
         #import pdb; pdb.set_trace()
         #self.email_status=self.request.GET['email']
         #kwargs.update({'email': self.email_status})
@@ -185,7 +227,7 @@ class access_reason(FormView):
     def get_form_kwargs(self,  **kwargs):
         kwargs = super(access_reason, self).get_form_kwargs(**kwargs)
         #import pdb; pdb.set_trace()
-        kwargs['email'] = self.request.GET['email']
+        kwargs['user_email'] = self.request.GET['user_email']
         kwargs['behalf'] = self.request.GET['behalf']
         return kwargs
 
@@ -222,6 +264,7 @@ def send_mails(token, approver, request_id, user_email):#, protocol, domain):
     # activate_url = "{0}://{1}{2}".format(protocol, domain, activation_url)
     #send_approvals_email(token, str(approver))
     send_approvals_email(str(request_id), str(approver))
+    send_end_user_email(str(request_id), str(approver))
     #send_requester_email(str(request_id), str(user_email), '')
 
 class user_details(FormView):
@@ -273,17 +316,22 @@ class user_details(FormView):
         User.objects.filter(email=user_email).update(request_id=request.id)
 
         #WHILST TESTING
-        send_mails(token, request.approver, request.id, user_email)#, self.request.scheme, self.request.get_host())
+        #import pdb; pdb.set_trace()
+        # google_analytics_id = Services.objects.get(service_name='google analytics')
+        # if google_analytics_id.id not in form.cleaned_data['services']:
+            # send_mails(token, request.approver, request.id, user_email)#, self.request.scheme, self.request.get_host())
         ga = ''
         paas = ''
         #import pdb; pdb.set_trace()
         if RequestItem.objects.filter(request_id=request.id, services__service_name='google analytics'):
             #return redirect('additional_info')
             self.request_id = request.id
+            self.approver = request.approver
             self.success_url = reverse_lazy('additional_info')
 
             return super().form_valid(form)
 
+        send_mails(token, request.approver, request.id, user_email)
         t = render_to_string("submitted.html")
 
         return HttpResponse(t)
@@ -291,7 +339,7 @@ class user_details(FormView):
     def get_success_url(self):
         url = super().get_success_url()
         #import pdb; pdb.set_trace()
-        context = {'request_id': self.request_id}
+        context = {'request_id': self.request_id, 'approver': self.approver}
         return url + '?' + urlencode(context)
 
 class additional_info(FormView):
@@ -309,10 +357,13 @@ class additional_info(FormView):
         kwargs = super(additional_info, self).get_form_kwargs(**kwargs)
         #import pdb; pdb.set_trace()
         self.request_id = self.request.GET['request_id']
+        self.approver = self.request.GET['approver']
         return kwargs
 
     def form_valid(self, form):
         RequestItem.objects.filter(request_id=self.request_id, services__service_name='google analytics').update(additional_info=form.cleaned_data['additional_info'])
+        send_approvals_email(str(self.request_id), str(self.approver))
+        send_end_user_email(str(self.request_id), str(self.approver))
         t = render_to_string("submitted.html")#, message)
         return HttpResponse(t)# 'Thank you, request rejected.  Requester has been notified')
 
@@ -494,6 +545,10 @@ class approve(FormView):
 
         Request.objects.filter(id__in=requests_to_approve).update(signed_off=True, signed_off_on=timezone.now())
 
+        for x in requests_to_approve:
+            #import pdb; pdb.set_trace()
+            send_accounts_creator_email(x)
+
         if requests_rejected:
             self.rejected_ids = requests_rejected
             self.success_url = reverse_lazy('rejected_reason')
@@ -534,3 +589,80 @@ class rejected_reason(View):
                 send_requester_email(requestid , Request.objects.get(id=requestid).approver.email, rejected_reason)
 
             return render(request, self.template_name_success)
+
+class request_status(generic.ListView):
+    #import pdb; pdb.set_trace()
+    #def get_queryset(self):
+    template_name = 'request-status.html'
+
+    def get(self, request, *args, **kwargs):
+        #import pdb; pdb.set_trace()
+        self.request.user.email
+        formatted_reqs_not_appr = []
+        #context_object_name = 'teams'
+        reqs_not_appr = Request.objects.values_list('id','approver__email','requestitem__services__service_name').filter(user_email=self.request.user.email, signed_off=False)
+        for req_id, approver, service in  reqs_not_appr:
+            if service ==  'google analytics':
+                #import pdb; pdb.set_trace()
+                formatted_reqs_not_appr.append('Request id: ' + str(req_id) +
+                    ', Approver: ' + approver +
+                    ', Service: ' + service + ' - ' +
+                    RequestItem.objects.get(
+                        request_id=req_id,services__service_name=service).additional_info
+                    )
+            else:
+                formatted_reqs_not_appr.append('Request id: ' + str(req_id) +
+                    ', Approver: ' + approver +
+                    ', Service: ' + service
+                    )
+
+        requests_not_activated = Request.objects.values_list('id').filter(user_email=self.request.user.email, signed_off=True)
+        service_not_activated = []
+
+        who_activates = []
+        for request_id in requests_not_activated:
+            service_not_activated = (RequestItem.objects.values('request_id','services_id').filter(request_id__in=request_id))
+        #import pdb; pdb.set_trace()
+        service_not_activated_lst = []
+        svc_admins = []
+        for idx, item in enumerate(service_not_activated):
+            for x in AccountsCreator.objects.values_list('email',flat=True).filter(services__id=item['services_id']):
+                svc_admins.append(x)
+            #import pdb; pdb.set_trace()
+            if Services.objects.get(id=item['services_id']).service_name ==  'google analytics':
+                #import pdb; pdb.set_trace()
+                service = Services.objects.get(
+                            id=item['services_id']).service_name + ' - ' + RequestItem.objects.get(
+                            request_id=item['request_id'],services_id=item['services_id']).additional_info
+            else:
+                service = Services.objects.get(id=item['services_id']).service_name
+
+            service_not_activated_lst.append('Request id: ' + str(item['request_id']) +
+                ', Service Admins: ' + str(set(svc_admins)) +
+                ', Service: ' + service
+                )
+        #import pdb; pdb.set_trace()
+        #who_activates = (AccountsCreator.objects.values_list('email').filter(services__in=service_not_activated_lst))
+
+        #return kwargs
+        return render(request, self.template_name, {'formatted_reqs_not_appr': formatted_reqs_not_appr, 'service_not_activated_lst': service_not_activated_lst})
+
+    # context_object_name = 'teams'
+    # queryset = Teams.objects.values_list('id', 'team_name').order_by('team_name')
+    #
+    # template_name = 'request-status.html'
+
+
+
+# class request_status(FormView):
+#     template_name = 'basic-post.html'
+#     form_class = RequestStatusForm
+#
+#     def form_valid(self, form):
+#
+#         return super().form_valid(form)
+#
+#     def get_success_url(self):
+#         url = super().get_success_url()
+#         context = {'behalf': self.behalf}
+#         return url + '?' + urlencode(self.context)

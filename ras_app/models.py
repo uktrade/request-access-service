@@ -19,6 +19,7 @@ class Services(models.Model):
 
 class Teams(models.Model):
     team_name = models.CharField(max_length=60)
+    sc = models.BooleanField(default=False)
 
 class Request(models.Model):
     requestor = models.EmailField()

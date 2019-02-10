@@ -1,0 +1,13 @@
+{
+  "services":
+      [
+        "vpn",
+        "rattic",
+        "github",
+        "trello",
+        "e-mail",
+        "slack",
+        "google analytics",
+        "ukgov paas"
+      ]
+}

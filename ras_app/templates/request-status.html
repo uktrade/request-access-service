@@ -1,0 +1,24 @@
+<!-- howdy/templates/index.html -->
+{% extends 'ras_app_template.html' %}
+
+{% block inner_content %}
+ <div class ="page-body">
+   <br>
+   <h1>Your Outstanding Requests</h1>
+   <br><br>
+   <h2>Requests awaiting to be approved:</h2>
+   <br>
+   {% for request in formatted_reqs_not_appr %}
+      <p style="margin-left: 60px">{{ request }}</p>
+
+    {% endfor %}
+     <br><br>
+    <h2>Approved requests awaiting to be actioned/completed:</h2>
+    <br>
+          {% for person in service_not_activated_lst %}
+            <p style="margin-left: 60px"> {{ person }}</p>
+
+          {% endfor %}
+
+      </div>
+{% endblock %}

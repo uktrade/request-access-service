@@ -23,8 +23,6 @@ ACTION_REQUESTS= [
     ('no', 'No'),
     ]
 
-
-
 class UserForm(GOVUKForm):
     needs_access = forms.ChoiceField(label='Are you requesting access for yourself?', choices=ACCESS_CHOICES, widget=widgets.Select())
 
@@ -32,6 +30,19 @@ class UserForm(GOVUKForm):
 def get_teams_list():
     #import pdb; pdb.set_trace()
     return Teams.objects.values_list('id', 'team_name').order_by('team_name')
+
+class AddSelfForm(GOVUKForm):
+    def __init__(self, *args, **kwargs):
+        #behalf_status = kwargs.pop('behalf')
+        super().__init__(*args, **kwargs)
+        self.fields['team'].choices = get_teams_list()
+
+    end_date = fields.SplitDateField(
+        label='End Date of Contract',
+        min_year=dt.date.today().year,
+        max_year=dt.date.today().year + 10,
+    )
+    team = forms.ChoiceField(label='Which team:', choices=[], widget=widgets.Select())
 
 class UserEmailForm(GOVUKForm):
     def __init__(self, *args, **kwargs):
@@ -101,8 +112,12 @@ def get_action_list(email):
         for y in accounts_creator_services:
             if v[1] == y:
                 #import pdb; pdb.set_trace()
+                service_item = Services.objects.get(id=v[1]).service_name
+                if service_item == 'google analytics':
+                    service_item = '[' + service_item + ' - ' + RequestItem.objects.get(request_id=v[3], services__service_name=service_item).additional_info + ']'
+
                 action_list.append([v[0],
-                Services.objects.get(id=v[1]).service_name
+                service_item
                 + ' - ' + 'User: ['
                 + v[2] + '] - Request ID: ['
                 + v[3]
@@ -136,7 +151,7 @@ def get_approver_list(email_exclude, behalf_status):
 
 class AccessReasonForm(GOVUKForm):
     def __init__(self, *args, **kwargs):
-        email_exclude = kwargs.pop('email')
+        email_exclude = kwargs.pop('user_email')
         behalf_status = kwargs.pop('behalf')
         super().__init__(*args, **kwargs)
         self.fields['approver'].choices = get_approver_list(email_exclude, behalf_status)
@@ -206,7 +221,10 @@ def get_approve_list(email):
         services_required = RequestItem.objects.values_list('services__service_name', flat=True).filter(request_id=id)
         services_required_as_str = ''
         for x in services_required:
-            services_required_as_str+= x + ', '
+            if x == 'google analytics':
+                services_required_as_str+= '['+ x + ' - ' + RequestItem.objects.get(request_id=id, services__service_name=x).additional_info + '], '
+            else:
+                services_required_as_str+= x + ', '
         user_team = User.objects.values_list('team__team_name', flat=True).filter(email=email)
         services_per_user = 'User: [' + email + '] in team: [' + user_team[0] + '] has requested access to services: [' + services_required_as_str + ']'
 
@@ -285,6 +303,7 @@ def action_rejected_form_factory(rejected_ids, post=None):
        form_list.append(RejectedReasonForm(post, id=id, prefix='id_{}'.format(id)))
    return form_list
 
+
 class UserDetailsForm(GOVUKForm):
     #services_list = get_service_list
     #import pdb; pdb.set_trace()
@@ -298,3 +317,17 @@ class UserDetailsForm(GOVUKForm):
 
 class RejectForm(GOVUKForm):
     rejected_reason = forms.CharField(label='Short description on why you have rejected access', widget=widgets.Textarea())
+
+
+# def get_status_list():
+#     #import pdb; pdb.set_trace()
+#     return Teams.objects.values_list('id', 'team_name').order_by('team_name')
+#
+# class RequestStatusForm(GOVUKForm):
+#     def __init__(self, *args, **kwargs):
+#         #behalf_status = kwargs.pop('behalf')
+#         super().__init__(*args, **kwargs)
+#         self.fields['team'].choices = get_status_list()
+#
+#     team = forms.ChoiceField(label='Which team:', choices=[], widget=widgets.Select())
+# 
