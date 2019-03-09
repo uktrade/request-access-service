@@ -323,6 +323,7 @@ class user_details(FormView):
             # send_mails(token, request.approver, request.id, user_email)#, self.request.scheme, self.request.get_host())
         ga = False
         github = False
+        ukgovpaas = False
         paas = ''
         self.service = ''
         #import pdb; pdb.set_trace()
@@ -332,11 +333,14 @@ class user_details(FormView):
         if RequestItem.objects.filter(request_id=request.id, services__service_name='github'):
             github = True
 
-        if ga or github:
+        if RequestItem.objects.filter(request_id=request.id, services__service_name='ukgov paas'):
+            ukgovpaas = True
+
+        if ga or github or ukgovpaas:
             #return redirect('additional_info')
             self.request_id = request.id
             self.approver = request.approver
-            self.services = '{"ga": "' + str(ga) + '", "github": "' + str(github) + '"}'
+            self.services = '{"ga": "' + str(ga) + '", "github": "' + str(github) + '", "ukgovpaas": "' + str(ukgovpaas) + '"}'
             self.success_url = reverse_lazy('additional_info')
 
             return super().form_valid(form)
@@ -399,8 +403,9 @@ class additional_info(FormView):
 
             if value == 'True' and service == 'github':
                 RequestItem.objects.filter(request_id=self.request_id, services__service_name='github').update(additional_info=form.cleaned_data['github_info'])
-        #if self.service == 'google analytics':
-            #RequestItem.objects.filter(request_id=self.request_id, services__service_name='google analytics').update(additional_info=form.cleaned_data['ga_info'])
+
+            if value == 'True' and service == 'ukgovpaas':
+                RequestItem.objects.filter(request_id=self.request_id, services__service_name='ukgov paas').update(additional_info=form.cleaned_data['ukgovpaas_info'])
 
 
         send_approvals_email(str(self.request_id), str(self.approver))
@@ -643,7 +648,7 @@ class request_status(generic.ListView):
         #context_object_name = 'teams'
         reqs_not_appr = Request.objects.values_list('id','approver__email','requestitem__services__service_name').filter(user_email=self.request.user.email, signed_off=False)
         for req_id, approver, service in  reqs_not_appr:
-            if service in ['google analytics', 'github']:
+            if service in ['google analytics', 'github', 'ukgov paas']:
                 #import pdb; pdb.set_trace()
                 formatted_reqs_not_appr.append('Request id: ' + str(req_id) +
                     ', Approver: ' + approver +
@@ -670,7 +675,7 @@ class request_status(generic.ListView):
             for x in AccountsCreator.objects.values_list('email',flat=True).filter(services__id=item['services_id']):
                 svc_admins.append(x)
             #import pdb; pdb.set_trace()
-            if Services.objects.get(id=item['services_id']).service_name in ['google analytics', 'github']:
+            if Services.objects.get(id=item['services_id']).service_name in ['google analytics', 'github', 'ukgov paas']:
                 #import pdb; pdb.set_trace()
                 service = Services.objects.get(
                             id=item['services_id']).service_name + ' - ' + RequestItem.objects.get(

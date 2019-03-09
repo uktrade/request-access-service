@@ -91,6 +91,7 @@ class AdditionalInfoForm(GOVUKForm):
     #import pdb; pdb.set_trace()
     ga_info = forms.CharField(label='List GA access', max_length=60, widget=widgets.TextInput())
     github_info = forms.CharField(label='GitHub Username', max_length=60, widget=widgets.TextInput())
+    ukgovpaas_info = forms.CharField(label='GovPaaS Space', max_length=60, widget=widgets.TextInput())
 
     def __init__(self, *args, **kwargs):
         #import pdb; pdb.set_trace()
@@ -110,6 +111,9 @@ class AdditionalInfoForm(GOVUKForm):
                 self.fields['github_info'].widget = forms.HiddenInput()
                 self.fields['github_info'].required = False
 
+            if value == 'False' and service == 'ukgovpaas':
+                self.fields['ukgovpaas_info'].widget = forms.HiddenInput()
+                self.fields['ukgovpaas_info'].required = False
 
         # if service == 'google analytics':
         #     #self.fields['user_email'].widget = forms.HiddenInput()
