@@ -10,6 +10,13 @@ class Command(BaseCommand):
         print ('Running')
         #send_approvals_email()
 
+def get_username(user_email):
+    firstname = User.objects.get(email=user_email).firstname
+    surname = User.objects.get(email=user_email).surname
+    person = firstname + ' ' + surname
+
+    return person
+
 
 def get_approval_details(request_id):
     #import pdb; pdb.set_trace()
@@ -25,7 +32,9 @@ def get_approval_details(request_id):
             items_to_approve_as_lst.append(x)
 
     request = Request.objects.get(id=request_id)
+    #requester = get_username(request.requestor)
     requester = request.requestor
+    #user = get_username(request.user_email)
     user = request.user_email
     #import pdb; pdb.set_trace()
     team_name = User.objects.get(email=user).team.team_name
@@ -44,14 +53,16 @@ def send_approvals_email(request_id, approver):
     requester, user, team_name, items_to_approve, sc = get_approval_details(request_id)
     #items_to_approve_as_lst = ', '.join(items_to_approve)
     approval_url = 'https://' + settings.DOMAIN_NAME + '/access-requests/'
-
+    attention_for = get_username(approver)
+    requester = get_username(requester)
+    user = get_username(user)
 
     notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
     notifications_client.send_email_notification(
         email_address=approver,
         template_id=settings.EMAIL_UUID,
         personalisation={
-            'name': approver,
+            'name': attention_for,
             'sc': sc,
             'requester': requester,
             'user': user,
@@ -74,12 +85,16 @@ def send_requester_email(request_id, approver, rejection_reason):
 
     requester, user, team_name, items_to_approve, sc = get_approval_details(request_id)
 
+    attention_for = get_username(requester)
+    approver = get_username(approver)
+    user = get_username(user)
+
     notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
     notifications_client.send_email_notification(
         email_address=requester,
         template_id=settings.EMAIL_REQUESTOR_UUID,
         personalisation={
-            'name': requester,
+            'name': attention_for,
             'approver': approver,
             'request_id': request_id,
             'user': user,
@@ -97,12 +112,16 @@ def send_end_user_email(request_id, approver):
     requester, user, team_name, items_to_approve, sc = get_approval_details(request_id)
     ras_url = 'https://' + settings.DOMAIN_NAME + '/request-status/'
 
+    attention_for = get_username(user)
+    requester = get_username(requester)
+    approver = get_username(approver)
+
     notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
     notifications_client.send_email_notification(
         email_address=user,
         template_id=settings.EMAIL_ENDUSER_UUID,
         personalisation={
-            'name': user,
+            'name': attention_for,
             'requester': requester,
             'approver': approver,
             'request_id': request_id,
@@ -123,12 +142,13 @@ def send_accounts_creator_email(request_id):
         print ('emailing: ')
         print (x)
 
+        attention_for = get_username(x)
 
         notifications_client.send_email_notification(
             email_address=x,
             template_id=settings.EMAIL_ACTIVATE_UUID,
             personalisation={
-                'name': x,
+                'name': attention_for,
                 'ras_url': ras_url
             }
         )
@@ -152,23 +172,27 @@ def send_completed_email(completed_tasks):
         else:
             services = out[x]
 
+        attention_for = get_username(confirmation_user)
+
         notifications_client.send_email_notification(
             email_address=confirmation_user,
             template_id=settings.EMAIL_COMPLETED_UUID,
             personalisation={
                 'who_got_access': 'You have',
-                'name': confirmation_user,
+                'name': attention_for,
                 'services': services
             }
         )
 
         if confirmation_requestor != confirmation_user:
+            attention_for = get_username(confirmation_requestor)
+
             notifications_client.send_email_notification(
             email_address=confirmation_requestor,
             template_id=settings.EMAIL_COMPLETED_UUID,
             personalisation={
-                'who_got_access': confirmation_requestor + ' has',
-                'name': confirmation_requestor,
+                'who_got_access': attention_for + ' has',
+                'name': attention_for,
                 'services': services
             }
         )
@@ -179,11 +203,14 @@ def send_accounts_creator_close_email(creator, offboard, services, end_date):
     #import pdb; pdb.set_trace()
     notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
 
+    attention_for = get_username(creator)
+    offboard = get_username(offboard)
+
     notifications_client.send_email_notification(
         email_address=creator,
         template_id=settings.EMAIL_OFFBOARD_UUID,
         personalisation={
-            'creator': creator,
+            'creator': attention_for,
             'offboard': offboard,
             'services': services,
             'end_date': end_date
