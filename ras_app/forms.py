@@ -38,11 +38,11 @@ class AddSelfForm(GOVUKForm):
         super().__init__(*args, **kwargs)
         self.fields['team'].choices = get_teams_list()
 
-    end_date = fields.SplitDateField(
-        label='End Date of Contract',
-        min_year=dt.date.today().year,
-        max_year=dt.date.today().year + 10,
-    )
+    # end_date = fields.SplitDateField(
+    #     label='End Date of Contract',
+    #     min_year=dt.date.today().year,
+    #     max_year=dt.date.today().year + 10,
+    # )
     team = forms.ChoiceField(label='Which team:', choices=[], widget=widgets.Select())
 
 class UserEmailForm(GOVUKForm):
@@ -59,11 +59,11 @@ class UserEndForm(GOVUKForm):
     firstname = forms.CharField(label='Users Firstname', max_length=60, widget=widgets.TextInput())
     surname = forms.CharField(label='Users Surname', max_length=60, required=False, widget=widgets.TextInput())
     #end_date = SplitDateFieldsWTF()
-    end_date = fields.SplitDateField(
-        label='End Date of Contract',
-        min_year=dt.date.today().year,
-        max_year=dt.date.today().year + 10,
-    )
+    # end_date = fields.SplitDateField(
+    #     label='End Date of Contract',
+    #     min_year=dt.date.today().year,
+    #     max_year=dt.date.today().year + 10,
+    # )
 
     # def __init__(self, *args, **kwargs):
     #     #import pdb; pdb.set_trace()
@@ -78,20 +78,20 @@ class UserEndForm(GOVUKForm):
     #         self.fields['surname'].required = False
 
         #import pdb; pdb.set_trace()
-    def clean_end_date(self):
-        #import pdb; pdb.set_trace()
-        date = self.cleaned_data['end_date']
-        if date and date < dt.date.today():
-            raise forms.ValidationError('The date cannot be in the past')
-        return date
+    # def clean_end_date(self):
+    #     #import pdb; pdb.set_trace()
+    #     date = self.cleaned_data['end_date']
+    #     if date and date < dt.date.today():
+    #         raise forms.ValidationError('The date cannot be in the past')
+    #     return date
 
 
 class AdditionalInfoForm(GOVUKForm):
     #services_list = get_service_list
     #import pdb; pdb.set_trace()
-    ga_info = forms.CharField(label='List GA access', max_length=60, widget=widgets.TextInput())
-    github_info = forms.CharField(label='GitHub Username', max_length=60, widget=widgets.TextInput())
-    ukgovpaas_info = forms.CharField(label='GovPaaS Space', max_length=60, widget=widgets.TextInput())
+    ga_info = forms.CharField(label='Please specify which Google Analytics access you require.', max_length=60, widget=widgets.TextInput())
+    github_info = forms.CharField(label='Your GitHub Username', max_length=60, widget=widgets.TextInput())
+    ukgovpaas_info = forms.CharField(label='Which GovPaaS Space', max_length=60, widget=widgets.TextInput())
 
     def __init__(self, *args, **kwargs):
         #import pdb; pdb.set_trace()
@@ -190,7 +190,7 @@ class AccessReasonForm(GOVUKForm):
         #self.fields['team'].choices = get_teams_list()
 
     #approver_list = get_approver_list
-    reason = forms.CharField(label='Short description on why you need access:', widget=widgets.Textarea())
+    #reason = forms.CharField(label='Short description on why you need access:', widget=widgets.Textarea())
     #team = forms.ChoiceField(label='Which team:', choices=[], widget=widgets.Select())
     approver = forms.ChoiceField(label='Person who will approve access:', choices=[], widget=widgets.Select())
 
@@ -201,6 +201,14 @@ class AccessReasonForm(GOVUKForm):
 #
 #     return forms
 
+class ReasonForm(GOVUKForm):
+    def __init__(self, *args, **kwargs):
+        # email_exclude = kwargs.pop('user_email')
+        # behalf_status = kwargs.pop('behalf')
+        super().__init__(*args, **kwargs)
+        #self.fields['approver'].choices = get_approver_list(email_exclude, behalf_status)
+
+    reason = forms.CharField(label='Short description on why you need access:', widget=widgets.Textarea())
 
 def get_deactivate_list(email, user_found):
     action_list = []
@@ -236,7 +244,7 @@ class DeactivateForm(GOVUKForm):
 
 def action_request_form_factory(creator_email, post=None):
    form_list = []
-   #import pdb; pdb.set_trace()
+   import pdb; pdb.set_trace()
    for user in User.objects.filter(end_date__lt=dt.date.today(), request_id__isnull=False):
        form_list.append(DeactivateForm(post, creator_email=creator_email, user=user, prefix='user_{}'.format(user.id)))
    return form_list

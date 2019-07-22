@@ -2,7 +2,7 @@ import json
 from django.shortcuts import render, redirect
 
 from django.urls import reverse_lazy
-from .forms import UserForm, ActionRequestsForm, AddSelfForm, RejectForm, UserDetailsForm, AccessReasonForm, UserEndForm, UserEmailForm, DeactivateForm, action_request_form_factory, AdditionalInfoForm, ApproveForm, RejectedReasonForm, action_rejected_form_factory
+from .forms import UserForm, ActionRequestsForm, AddSelfForm, RejectForm, UserDetailsForm, AccessReasonForm, UserEndForm, UserEmailForm, DeactivateForm, action_request_form_factory, AdditionalInfoForm, ReasonForm, ApproveForm, RejectedReasonForm, action_rejected_form_factory
 from urllib.parse import urlencode
 from .models import Approver, Services, User, Request, RequestItem, RequestorDetails, Teams, AccountsCreator#, RequestServices
 from django.utils.encoding import force_bytes, force_text
@@ -82,7 +82,7 @@ class add_self(FormView):
             defaults={
             'firstname': self.request.user.first_name,
             'surname': self.request.user.last_name,
-            'end_date': form.cleaned_data['end_date'],
+            #'end_date': form.cleaned_data['end_date'],
             'team': Teams.objects.get(id=form.cleaned_data['team'])
             },
             email=self.request.user.email
@@ -173,7 +173,7 @@ class user_end(FormView):
             defaults={
             'firstname': firstname,
             'surname': surname,
-            'end_date': form.cleaned_data['end_date'],
+            #'end_date': form.cleaned_data['end_date'],
             'team': Teams.objects.get(id=self.team)
             },
             email=self.user_email
@@ -234,15 +234,15 @@ class access_reason(FormView):
 
     def form_valid(self, form):
         approver = form.cleaned_data['approver']
-        reason=form.cleaned_data['reason']
+        #reason=form.cleaned_data['reason']
         #team=form.cleaned_data['team']
         self.context = {
             'email': self.request.GET['email'],
             'user_email': self.request.GET['user_email'],
             'behalf': self.request.GET['behalf'],
-            'approver': approver,
+            'approver': approver
             #'team': team,
-            'reason': reason
+            # 'reason': reason
             }
 
         return super().form_valid(form)
@@ -271,6 +271,7 @@ def send_mails(token, approver, request_id, user_email):#, protocol, domain):
 class user_details(FormView):
     template_name = 'basic-post.html'
     form_class = UserDetailsForm
+    success_url = reverse_lazy('reason')
 
     def dispatch(self, request, *args, **kwargs):
         #import pdb; pdb.set_trace()
@@ -292,11 +293,11 @@ class user_details(FormView):
         behalf = self.request.GET['behalf']
         approver = Approver.objects.get(id=self.request.GET['approver'])
         #team=self.request.GET['team']
-        reason = self.request.GET['reason']
+        #reason = self.request.GET['reason']
         token = get_token()
         request = Request.objects.create(
                         requestor=requestor,
-                        reason=reason,
+                        #reason=reason,
                         approver=approver,
                         token=token,
                         #team=team,
@@ -336,14 +337,18 @@ class user_details(FormView):
         if RequestItem.objects.filter(request_id=request.id, services__service_name='ukgov paas'):
             ukgovpaas = True
 
+        self.request_id = request.id
+        self.approver = request.approver
+        self.services = '{"ga": "' + str(ga) + '", "github": "' + str(github) + '", "ukgovpaas": "' + str(ukgovpaas) + '"}'
+
         if ga or github or ukgovpaas:
             #return redirect('additional_info')
-            self.request_id = request.id
-            self.approver = request.approver
-            self.services = '{"ga": "' + str(ga) + '", "github": "' + str(github) + '", "ukgovpaas": "' + str(ukgovpaas) + '"}'
+            # self.request_id = request.id
+            # self.approver = request.approver
+            # self.services = '{"ga": "' + str(ga) + '", "github": "' + str(github) + '", "ukgovpaas": "' + str(ukgovpaas) + '"}'
             self.success_url = reverse_lazy('additional_info')
 
-            return super().form_valid(form)
+        return super().form_valid(form)
 
         # if RequestItem.objects.filter(request_id=request.id, services__service_name='github'):
         #     #return redirect('additional_info')
@@ -354,10 +359,10 @@ class user_details(FormView):
         #
         #     return super().form_valid(form)
 
-        send_mails(token, request.approver, request.id, user_email)
-        t = render_to_string("submitted.html")
-
-        return HttpResponse(t)
+        #send_mails(token, request.approver, request.id, user_email)
+        # t = render_to_string("submitted.html")
+        #
+        # return HttpResponse(t)
 
     def get_success_url(self):
         url = super().get_success_url()
@@ -368,6 +373,7 @@ class user_details(FormView):
 class additional_info(FormView):
     template_name = 'basic-post.html'
     form_class = AdditionalInfoForm
+    success_url = reverse_lazy('reason')
 
     # def get_form_kwargs(self):
     #     #import pdb; pdb.set_trace()
@@ -407,11 +413,51 @@ class additional_info(FormView):
             if value == 'True' and service == 'ukgovpaas':
                 RequestItem.objects.filter(request_id=self.request_id, services__service_name='ukgov paas').update(additional_info=form.cleaned_data['ukgovpaas_info'])
 
+        return super().form_valid(form)
 
-        send_approvals_email(str(self.request_id), str(self.approver))
-        send_end_user_email(str(self.request_id), str(self.approver))
+    def get_success_url(self):
+        url = super().get_success_url()
+        #import pdb; pdb.set_trace()
+        context = {'request_id': self.request_id, 'approver': self.approver, 'services': self.services}
+        return url + '?' + urlencode(context)
+
+        #send_approvals_email(str(self.request_id), str(self.approver))
+        #send_end_user_email(str(self.request_id), str(self.approver))
+        # t = render_to_string("submitted.html")#, message)
+        # return HttpResponse(t)# 'Thank you, request rejected.  Requester has been notified')
+
+
+class reason(FormView):
+    template_name = 'basic-post.html'
+    form_class = ReasonForm
+
+    def dispatch(self, request, *args, **kwargs):
+        #import pdb; pdb.set_trace()
+        if not reverse('user_details') in self.request.META.get('HTTP_REFERER', ''):
+            if not reverse('reason') in self.request.META.get('HTTP_REFERER', ''):
+                if not reverse('additional_info') in self.request.META.get('HTTP_REFERER', ''):
+                    return redirect('home_page')
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        #kwargs = super(additional_info, self).get_form_kwargs(**kwargs)
+        #import pdb; pdb.set_trace()
+        kwargs = super().get_form_kwargs()
+        self.request_id = self.request.GET['request_id']
+
+        #kwargs.update({'services': self.services})
+        return kwargs
+
+    def form_valid(self, form):
+        #service_objects = json.loads(self.services)
+        import pdb; pdb.set_trace()
+        #print(self.request_id)
+        Request.objects.filter(id=self.request_id).update(reason=form.cleaned_data['reason'])
+        # send_approvals_email(str(self.request_id), str(self.approver))
+        # send_end_user_email(str(self.request_id), str(self.approver))
         t = render_to_string("submitted.html")#, message)
-        return HttpResponse(t)# 'Thank you, request rejected.  Requester has been notified')
+        return HttpResponse(t)
 
 
 def admin_override(request):
@@ -521,7 +567,8 @@ class action_requests(FormView):
 
         t = render_to_string("submitted.html")
         return HttpResponse(t)
-
+####
+### Function no longer required as end-date has been removed from user.
 class deactivate(View):
     template_name = 'deactivate.html'
     template_name_success = 'submitted.html'

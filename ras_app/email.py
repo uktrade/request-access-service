@@ -58,19 +58,20 @@ def send_approvals_email(request_id, approver):
     user = get_username(user)
 
     notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
-    notifications_client.send_email_notification(
-        email_address=approver,
-        template_id=settings.EMAIL_UUID,
-        personalisation={
-            'name': attention_for,
-            'sc': sc,
-            'requester': requester,
-            'user': user,
-            'team': team_name,
-            'services': items_to_approve,
-            'url': approval_url
-        }
-    )
+    ####Comment out whilst testing
+    # notifications_client.send_email_notification(
+    #     email_address=approver,
+    #     template_id=settings.EMAIL_UUID,
+    #     personalisation={
+    #         'name': attention_for,
+    #         'sc': sc,
+    #         'requester': requester,
+    #         'user': user,
+    #         'team': team_name,
+    #         'services': items_to_approve,
+    #         'url': approval_url
+    #     }
+    # )
 
 
 def send_requester_email(request_id, approver, rejection_reason):
@@ -90,19 +91,20 @@ def send_requester_email(request_id, approver, rejection_reason):
     user = get_username(user)
 
     notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
-    notifications_client.send_email_notification(
-        email_address=requester,
-        template_id=settings.EMAIL_REQUESTOR_UUID,
-        personalisation={
-            'name': attention_for,
-            'approver': approver,
-            'request_id': request_id,
-            'user': user,
-            'status': status,
-            'services': items_to_approve,
-            'rejection_reason': rejection_reason
-        }
-    )
+    ####Comment out whilst testing
+    # notifications_client.send_email_notification(
+    #     email_address=requester,
+    #     template_id=settings.EMAIL_REQUESTOR_UUID,
+    #     personalisation={
+    #         'name': attention_for,
+    #         'approver': approver,
+    #         'request_id': request_id,
+    #         'user': user,
+    #         'status': status,
+    #         'services': items_to_approve,
+    #         'rejection_reason': rejection_reason
+    #     }
+    # )
 
 def send_end_user_email(request_id, approver):
     print ('Sending mail')
@@ -115,20 +117,20 @@ def send_end_user_email(request_id, approver):
     attention_for = get_username(user)
     requester = get_username(requester)
     approver = get_username(approver)
-
+    ####Comment out whilst testing
     notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
-    notifications_client.send_email_notification(
-        email_address=user,
-        template_id=settings.EMAIL_ENDUSER_UUID,
-        personalisation={
-            'name': attention_for,
-            'requester': requester,
-            'approver': approver,
-            'request_id': request_id,
-            'ras_url': ras_url,
-            'services': items_to_approve
-        }
-    )
+    # notifications_client.send_email_notification(
+    #     email_address=user,
+    #     template_id=settings.EMAIL_ENDUSER_UUID,
+    #     personalisation={
+    #         'name': attention_for,
+    #         'requester': requester,
+    #         'approver': approver,
+    #         'request_id': request_id,
+    #         'ras_url': ras_url,
+    #         'services': items_to_approve
+    #     }
+    # )
 
 def send_accounts_creator_email(request_id):
     print ('Sending mail')
@@ -143,15 +145,15 @@ def send_accounts_creator_email(request_id):
         print (x)
 
         attention_for = get_username(x)
-
-        notifications_client.send_email_notification(
-            email_address=x,
-            template_id=settings.EMAIL_ACTIVATE_UUID,
-            personalisation={
-                'name': attention_for,
-                'ras_url': ras_url
-            }
-        )
+        ####Comment out whilst testing
+        # notifications_client.send_email_notification(
+        #     email_address=x,
+        #     template_id=settings.EMAIL_ACTIVATE_UUID,
+        #     personalisation={
+        #         'name': attention_for,
+        #         'ras_url': ras_url
+        #     }
+        # )
 
 
 def send_completed_email(completed_tasks):
@@ -160,20 +162,25 @@ def send_completed_email(completed_tasks):
     out = defaultdict(list)
     #import pdb; pdb.set_trace()
     for item in completed_tasks:
-        out[item['request_id']].append(item['services__service_name'])
+        out[item['request_id']].append(item['services__service_name'] +
+                ', link to docs: ' +
+                Services.objects.get(service_name=item['services__service_name']).service_docs +
+                ', service url: ' +
+                Services.objects.get(service_name=item['services__service_name']).service_url
+                )
 
     for x in out:
 
         confirmation_user = Request.objects.get(id=x).user_email
         confirmation_requestor = Request.objects.get(id=x).requestor
 
-        if out[x][0] in ['google analytics', 'github', 'ukgov paas']:
+        if out[x][0].partition(',')[0] in ['google analytics', 'github', 'ukgov paas']:
             services = '[' + out[x][0] + ' - ' + RequestItem.objects.get(request_id=x, services__service_name=out[x][0]).additional_info + ']'
         else:
             services = out[x]
 
         attention_for = get_username(confirmation_user)
-
+        ####Comment out whilst testing
         notifications_client.send_email_notification(
             email_address=confirmation_user,
             template_id=settings.EMAIL_COMPLETED_UUID,
@@ -198,7 +205,7 @@ def send_completed_email(completed_tasks):
         )
 
 
-def send_accounts_creator_close_email(creator, offboard, services, end_date):
+def send_accounts_creator_close_email(creator, offboard, services): #end_date):
     print ('Sending mail to', creator)
     #import pdb; pdb.set_trace()
     notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
@@ -212,7 +219,7 @@ def send_accounts_creator_close_email(creator, offboard, services, end_date):
         personalisation={
             'creator': attention_for,
             'offboard': offboard,
-            'services': services,
-            'end_date': end_date
+            'services': services
+            #'end_date': end_date
         }
     )

@@ -9,7 +9,7 @@ class approver_admin(admin.ModelAdmin):
 
 @admin.register(Services)
 class service_admin(admin.ModelAdmin):
-	list_display = ('id', 'service_name')
+	list_display = ('id', 'service_name', 'service_docs', 'service_url')
 
 # @admin.register(Request)
 # class Request_admin(admin.ModelAdmin):
@@ -29,7 +29,8 @@ class service_admin(admin.ModelAdmin):
 
 @admin.register(User)
 class User_admin(admin.ModelAdmin):
-	list_display = ('firstname', 'surname', 'get_team', 'email', 'end_date', 'request', 'get_services')
+	list_display = ('firstname', 'surname', 'get_team', 'email', 'request', 'get_services')
+	#list_display = ('firstname', 'surname', 'get_team', 'email', 'end_date', 'request', 'get_services')
 	#filter_horizontal = ('request',)
 	def get_services(self, obj):
 		#import pdb; pdb.set_trace()

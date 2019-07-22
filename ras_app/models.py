@@ -12,6 +12,8 @@ class Approver(models.Model):
 
 class Services(models.Model):
     service_name = models.CharField(max_length=60)
+    service_url = models.URLField(blank=True)
+    service_docs =  models.URLField(blank=True)
     #additional_info = models.CharField(max_length=60, blank=True)
 
     def __str__(self):
@@ -27,7 +29,7 @@ class Request(models.Model):
     #services = models.ManyToManyField(Services)#, through='RequestServices')
     signed_off = models.BooleanField(default=False)
     signed_off_on = models.DateTimeField(null=True)
-    reason = models.CharField(max_length=400)
+    reason = models.CharField(default=False, max_length=400)
     user_email = models.EmailField()
     token = models.CharField(default=False, max_length=20)
     completed = models.BooleanField(default=False)
@@ -54,7 +56,7 @@ class User(models.Model):
     firstname = models.CharField(max_length=60)
     surname = models.CharField(max_length=60)
     email = models.EmailField(max_length=60)#, unique=True)
-    end_date = models.DateField(null=True)
+    #end_date = models.DateField(null=True)
     team = models.ForeignKey(Teams, on_delete=models.CASCADE)
     request = models.ForeignKey(Request, on_delete=models.CASCADE, blank=True, null=True)
 
