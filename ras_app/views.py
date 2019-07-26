@@ -1,8 +1,9 @@
 import json
+import requests
 from django.shortcuts import render, redirect
 
 from django.urls import reverse_lazy
-from .forms import UserForm, ActionRequestsForm, AddSelfForm, RejectForm, UserDetailsForm, AccessReasonForm, UserEndForm, UserEmailForm, DeactivateForm, action_request_form_factory, AdditionalInfoForm, ReasonForm, ApproveForm, RejectedReasonForm, action_rejected_form_factory
+from .forms import UserForm, ActionRequestsForm, AddSelfForm, RejectForm, UserDetailsForm, AccessReasonForm, UserEmailForm, DeactivateForm, action_request_form_factory, AdditionalInfoForm, ReasonForm, ApproveForm, RejectedReasonForm, action_rejected_form_factory
 from urllib.parse import urlencode
 from .models import Approver, Services, User, Request, RequestItem, RequestorDetails, Teams, AccountsCreator#, RequestServices
 from django.utils.encoding import force_bytes, force_text
@@ -26,6 +27,26 @@ from django.utils.crypto import get_random_string
 from django.contrib.auth.decorators import login_required
 
 # Create your views here.
+
+def get_user_dets(self):
+
+    #import pdb; pdb.set_trace()
+    #header = "'Authorization': 'Bearer " + settings.SSO_INTROS_TOKEN + "'"
+
+    response = requests.get('https://sso.trade.gov.uk/api/v1/user/introspect/',
+                    params={'email': self.user_email},
+                    headers={'Authorization': f'Bearer {settings.SSO_INTROS_TOKEN}'})
+                    #headers={header})
+
+    if response.status_code == requests.codes.ok:
+        user_data = response.json()
+        self.firstname = user_data['first_name']
+        self.surname = user_data['last_name']
+        return self #firstname, surname
+
+    else:
+        messages.info(self.request, 'This user is not in the staff sso database')
+        return redirect('user_email')
 
 
 #@login_required(login_url='/landing-page/')
@@ -123,7 +144,49 @@ class user_email(FormView):
             self.success_url = reverse_lazy('access_reason')
             #return super().form_valid(form)
         else:
-            self.success_url = reverse_lazy('user_end')
+            #firstname, surname = get_user_dets(self)
+            #get_user_dets(self)
+            #import pdb; pdb.set_trace()
+
+            response = requests.get('https://sso.trade.gov.uk/api/v1/user/introspect/',
+                            params={'email': self.user_email},
+                            headers={'Authorization': f'Bearer {settings.SSO_INTROS_TOKEN}'})
+                            #headers={header})
+
+            if response.status_code == requests.codes.ok:
+                user_data = response.json()
+                self.firstname = user_data['first_name']
+                self.surname = user_data['last_name']
+                #return self #firstname, surname
+
+            else:
+                messages.info(self.request, 'This user is not in the staff sso database')
+                #return redirect('user_email')
+                #context = {'behalf': True}
+                #response = user_email(self.request, context)
+                #return response
+                return redirect('/user-email/?behalf=True')
+
+            User.objects.update_or_create(
+                defaults={
+                'firstname': self.firstname,
+                'surname': self.surname,
+                #'end_date': form.cleaned_data['end_date'],
+                'team': Teams.objects.get(id=self.team)
+                },
+                email=self.user_email
+                )
+
+            RequestorDetails.objects.update_or_create(
+                defaults={
+                'firstname': self.request.user.first_name,
+                'surname': self.request.user.last_name,
+                },
+                email=self.email
+                )
+
+            self.success_url = reverse_lazy('access_reason')
+            #self.success_url = reverse_lazy('user_end')
 
         return super().form_valid(form)
 
@@ -133,66 +196,67 @@ class user_email(FormView):
         return url + '?' + urlencode(context)
 
 
-class user_end(FormView):
-    template_name = 'basic-post.html'
-    form_class = UserEndForm
-    success_url = reverse_lazy('access_reason')#('user_details')
-
-    def dispatch(self, request, *args, **kwargs):
-        if not reverse('user_email') in self.request.META.get('HTTP_REFERER', ''):
-            if not reverse('user_end') in self.request.META.get('HTTP_REFERER', ''):
-                return redirect('home_page')
-
-        return super().dispatch(request, *args, **kwargs)
-
-    def get_form_kwargs(self):
-
-        kwargs = super(user_end, self).get_form_kwargs()
-        self.email = self.request.GET['email']
-        self.user_email = self.request.GET['user_email']
-        self.team=self.request.GET['team']
-        self.behalf_status=self.request.GET['behalf']
-        # kwargs.update({'behalf': self.behalf_status})
-        return kwargs
-
-    def form_valid(self, form):
-        #self.email = self.request.user.email
-        #import pdb; pdb.set_trace()
-
-        if self.behalf_status == 'True':
-            #self.user_email = form.cleaned_data['user_email']
-            firstname = form.cleaned_data['firstname']
-            surname = form.cleaned_data['surname']
-
-        else:
-            self.user_email = self.email
-            firstname = self.request.user.first_name
-            surname = self.request.user.last_name
-        #import pdb; pdb.set_trace()
-        User.objects.update_or_create(
-            defaults={
-            'firstname': firstname,
-            'surname': surname,
-            #'end_date': form.cleaned_data['end_date'],
-            'team': Teams.objects.get(id=self.team)
-            },
-            email=self.user_email
-            )
-
-        RequestorDetails.objects.update_or_create(
-            defaults={
-            'firstname': self.request.user.first_name,
-            'surname': self.request.user.last_name,
-            },
-            email=self.email
-            )
-
-        return super().form_valid(form)
-
-    def get_success_url(self):
-        url = super().get_success_url()
-        context = {'email': self.email, 'user_email': self.user_email, 'behalf': self.behalf_status}
-        return url + '?' + urlencode(context)
+####### Remove this function not needed anymore
+# class user_end(FormView):
+#     template_name = 'basic-post.html'
+#     form_class = UserEndForm
+#     success_url = reverse_lazy('access_reason')#('user_details')
+#
+#     def dispatch(self, request, *args, **kwargs):
+#         if not reverse('user_email') in self.request.META.get('HTTP_REFERER', ''):
+#             if not reverse('user_end') in self.request.META.get('HTTP_REFERER', ''):
+#                 return redirect('home_page')
+#
+#         return super().dispatch(request, *args, **kwargs)
+#
+#     def get_form_kwargs(self):
+#
+#         kwargs = super(user_end, self).get_form_kwargs()
+#         self.email = self.request.GET['email']
+#         self.user_email = self.request.GET['user_email']
+#         self.team=self.request.GET['team']
+#         self.behalf_status=self.request.GET['behalf']
+#         # kwargs.update({'behalf': self.behalf_status})
+#         return kwargs
+#
+#     def form_valid(self, form):
+#         #self.email = self.request.user.email
+#         #import pdb; pdb.set_trace()
+#
+#         if self.behalf_status == 'True':
+#             #self.user_email = form.cleaned_data['user_email']
+#             firstname = form.cleaned_data['firstname']
+#             surname = form.cleaned_data['surname']
+#
+#         else:
+#             self.user_email = self.email
+#             firstname = self.request.user.first_name
+#             surname = self.request.user.last_name
+#         #import pdb; pdb.set_trace()
+#         User.objects.update_or_create(
+#             defaults={
+#             'firstname': firstname,
+#             'surname': surname,
+#             #'end_date': form.cleaned_data['end_date'],
+#             'team': Teams.objects.get(id=self.team)
+#             },
+#             email=self.user_email
+#             )
+#
+#         RequestorDetails.objects.update_or_create(
+#             defaults={
+#             'firstname': self.request.user.first_name,
+#             'surname': self.request.user.last_name,
+#             },
+#             email=self.email
+#             )
+#
+#         return super().form_valid(form)
+#
+#     def get_success_url(self):
+#         url = super().get_success_url()
+#         context = {'email': self.email, 'user_email': self.user_email, 'behalf': self.behalf_status}
+#         return url + '?' + urlencode(context)
 
 
 class access_reason(FormView):
@@ -214,12 +278,12 @@ class access_reason(FormView):
     def dispatch(self, request, *args, **kwargs):
         #kwargs = super(access_reason, self).get_form_kwargs()
 
-        if not reverse('user_end') in self.request.META.get('HTTP_REFERER', ''):
-            if not reverse('user_email') in self.request.META.get('HTTP_REFERER', ''):
-                if not reverse('home_page') in self.request.META.get('HTTP_REFERER', ''):
-                    if not reverse('add_self') in self.request.META.get('HTTP_REFERER', ''):
-                        if not reverse('access_reason') in self.request.META.get('HTTP_REFERER', ''):
-                            return redirect('home_page')
+        #if not reverse('user_end') in self.request.META.get('HTTP_REFERER', ''):
+        if not reverse('user_email') in self.request.META.get('HTTP_REFERER', ''):
+            if not reverse('home_page') in self.request.META.get('HTTP_REFERER', ''):
+                if not reverse('add_self') in self.request.META.get('HTTP_REFERER', ''):
+                    if not reverse('access_reason') in self.request.META.get('HTTP_REFERER', ''):
+                        return redirect('home_page')
         #import pdb; pdb.set_trace()
         #self.email_status=self.request.GET['email']
         #kwargs.update({'email': self.email_status})

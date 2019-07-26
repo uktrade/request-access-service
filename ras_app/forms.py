@@ -54,36 +54,36 @@ class UserEmailForm(GOVUKForm):
     user_email = forms.CharField(label='Users E-mail (person who needs access)', max_length=60, widget=widgets.TextInput())
     team = forms.ChoiceField(label='Which team:', choices=[], widget=widgets.Select())
 
-class UserEndForm(GOVUKForm):
-    #user_email = forms.CharField(label='Users E-mail (person who needs access)', max_length=60, widget=widgets.TextInput())
-    firstname = forms.CharField(label='Users Firstname', max_length=60, widget=widgets.TextInput())
-    surname = forms.CharField(label='Users Surname', max_length=60, required=False, widget=widgets.TextInput())
-    #end_date = SplitDateFieldsWTF()
-    # end_date = fields.SplitDateField(
-    #     label='End Date of Contract',
-    #     min_year=dt.date.today().year,
-    #     max_year=dt.date.today().year + 10,
-    # )
-
-    # def __init__(self, *args, **kwargs):
-    #     #import pdb; pdb.set_trace()
-    #     behalf = kwargs.pop('behalf')
-    #     super(UserEndForm, self).__init__(*args, **kwargs)
-    #     if behalf == 'False':
-    #         #self.fields['user_email'].widget = forms.HiddenInput()
-    #         self.fields['firstname'].widget = forms.HiddenInput()
-    #         self.fields['surname'].widget = forms.HiddenInput()
-    #         #self.fields['user_email'].required = False
-    #         self.fields['firstname'].required = False
-    #         self.fields['surname'].required = False
-
-        #import pdb; pdb.set_trace()
-    # def clean_end_date(self):
-    #     #import pdb; pdb.set_trace()
-    #     date = self.cleaned_data['end_date']
-    #     if date and date < dt.date.today():
-    #         raise forms.ValidationError('The date cannot be in the past')
-    #     return date
+# class UserEndForm(GOVUKForm):
+#     #user_email = forms.CharField(label='Users E-mail (person who needs access)', max_length=60, widget=widgets.TextInput())
+#     firstname = forms.CharField(label='Users Firstname', max_length=60, widget=widgets.TextInput())
+#     surname = forms.CharField(label='Users Surname', max_length=60, required=False, widget=widgets.TextInput())
+#     #end_date = SplitDateFieldsWTF()
+#     # end_date = fields.SplitDateField(
+#     #     label='End Date of Contract',
+#     #     min_year=dt.date.today().year,
+#     #     max_year=dt.date.today().year + 10,
+#     # )
+#
+#     # def __init__(self, *args, **kwargs):
+#     #     #import pdb; pdb.set_trace()
+#     #     behalf = kwargs.pop('behalf')
+#     #     super(UserEndForm, self).__init__(*args, **kwargs)
+#     #     if behalf == 'False':
+#     #         #self.fields['user_email'].widget = forms.HiddenInput()
+#     #         self.fields['firstname'].widget = forms.HiddenInput()
+#     #         self.fields['surname'].widget = forms.HiddenInput()
+#     #         #self.fields['user_email'].required = False
+#     #         self.fields['firstname'].required = False
+#     #         self.fields['surname'].required = False
+#
+#         #import pdb; pdb.set_trace()
+#     # def clean_end_date(self):
+#     #     #import pdb; pdb.set_trace()
+#     #     date = self.cleaned_data['end_date']
+#     #     if date and date < dt.date.today():
+#     #         raise forms.ValidationError('The date cannot be in the past')
+#     #     return date
 
 
 class AdditionalInfoForm(GOVUKForm):

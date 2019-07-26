@@ -1,13 +1,20 @@
 {
-  "services":
-      [
-        "vpn",
-        "rattic",
-        "github",
-        "trello",
-        "e-mail",
-        "slack",
-        "google analytics",
-        "ukgov paas"
-      ]
+  "services":[
+                [ {"service_name": "smart survey"},
+                  {"service_url": "https://man.uktrade.io"},
+                  {"service_docs": "https://app.smartsurvey.co.uk/"}
+                ],
+                [ {"service_name": "jira"},
+                  {"service_url": "https://man.uktrade.io"},
+                  {"service_docs": "https://uktrade.atlassian.net"}
+                ],
+                [ {"service_name": "zendesk"},
+                  {"service_url": "https://man.uktrade.io"},
+                  {"service_docs": "http://uktrade.zendesk.com/"}
+                ],
+                [ {"service_name": "google analytics"},
+                  {"service_url": "https://man.uktrade.io"},
+                  {"service_docs": "https://analytics.google.com"}
+                ]
+            ]
 }
