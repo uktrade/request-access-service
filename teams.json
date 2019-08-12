@@ -2,10 +2,10 @@
   "teams":
       [
         {
-          "tools": "False",
-          "lite": "True",
-          "datahub": "False",
-          "trade remedies": "False"
+          "tools": {"sc": "False"},
+          "lite": {"sc": "True"},
+          "datahub": {"sc": "False"},
+          "trade remedies": {"sc": "False"}
         }
       ]
 }

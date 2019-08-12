@@ -50,7 +50,8 @@ INSTALLED_APPS = [
     #'bootstrap_datepicker_plus',
     'ras_app',
     'authbroker_client',
-    'dit_user_management',
+    'user',
+    #'dit_user_management',
 ]
 
 MIDDLEWARE = [
@@ -118,7 +119,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-AUTH_USER_MODEL = 'dit_user_management.User'
+#AUTH_USER_MODEL = 'dit_user_management.User'
 
 # Internationalization
 # https://docs.djangoproject.com/en/2.1/topics/i18n/
@@ -133,6 +134,7 @@ USE_L10N = True
 
 USE_TZ = True
 
+AUTH_USER_MODEL = 'user.User'
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.1/howto/static-files/
@@ -163,3 +165,4 @@ RESTRICT_ADMIN = env.bool("RESTRICT_ADMIN", True)
 ALLOWED_ADMIN_IPS = env.list("ALLOWED_ADMIN_IPS")
 IP_PROTECT_PATH = "/home/"
 DOMAIN_NAME = os.getenv("DOMAIN_NAME")
+SSO_INTROS_TOKEN = os.getenv("SSO_INTROS_TOKEN")
