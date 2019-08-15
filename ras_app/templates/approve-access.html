@@ -1,0 +1,27 @@
+{% extends 'ras_app_template.html' %}
+
+{% block inner_content %}
+        <div class ="page-body">
+
+
+         <body>
+           <p></p>
+        Use the search button to find the name of the person who will approve your access.<br>
+        <p></p>
+         <a class="button" href="/staff-lookup/?{{ request.GET.urlencode }}">
+         Search
+         </a>
+         </body>
+
+         <p></p>
+         <p>-----------------------------------------------------------------------------------------------------</p>
+         <p></p>
+
+        <form method="post"> 
+          {% csrf_token %}
+          {{ form }}
+          <p>If you are happy with your choice please press submit.</p>
+          <input type="submit" class="button" value="Submit">
+        </form>
+      </div>
+{% endblock %}

@@ -1,7 +1,7 @@
 from django.conf.urls import url
 from . import views
 from django.urls import path, include, re_path
-from .views import user_details, home_page, user_email, add_self, access_reason, reject_access, action_requests, reason, deactivate, additional_info, approve, rejected_reason, request_status
+from .views import user_details, home_page, user_email, add_self, access_reason, staff_lookup, reject_access, action_requests, reason, deactivate, additional_info, approve, rejected_reason, request_status
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from django.views.generic import RedirectView
@@ -26,6 +26,7 @@ urlpatterns = [
         #views.activate, name='activate'),
     path('user-details/', user_details.as_view(), name='user_details'),
     path('access-reason/', access_reason.as_view(), name='access_reason'),
+    path('staff-lookup/', staff_lookup.as_view(), name='staff_lookup'),
     path('additional-info/', additional_info.as_view(), name='additional_info'),
     path('reason/', reason.as_view(), name='reason'),
     #path('deactivate/', deactivate.as_view(), name='deactivate'),

@@ -1,19 +1,22 @@
-<!-- howdy/templates/index.html -->
 <!-- <!DOCTYPE html> -->
 
 {% extends 'ras_app_template.html' %}
 
 {% block inner_content %}
         <div class ="page-body">
+          <p></p>
           Hi {{ request.user.first_name }} {{ request.user.last_name }}
+          <p></p>
 
-        <form method="post">
-          {% csrf_token %}
-          {{ form }}
-          <input type="submit" class="button" value="Submit">
-        </form>
+          <form method="post">
+            {% csrf_token %}
+            {{ form }}
+            <input type="submit" class="button" value="Submit">
+          </form>
         </div>
+
         <div align="right">
         <a href="/admin/login">Admin</a>
       </div>
+      
 {% endblock %}

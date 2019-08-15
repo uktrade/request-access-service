@@ -3,7 +3,7 @@ import requests
 from django.shortcuts import render, redirect
 
 from django.urls import reverse_lazy
-from .forms import UserForm, ActionRequestsForm, AddSelfForm, RejectForm, UserDetailsForm, AccessReasonForm, UserEmailForm, DeactivateForm, action_request_form_factory, AdditionalInfoForm, ReasonForm, ApproveForm, RejectedReasonForm, action_rejected_form_factory
+from .forms import UserForm, ActionRequestsForm, AddSelfForm, RejectForm, UserDetailsForm, AccessReasonForm, StaffLookupForm, UserEmailForm, DeactivateForm, action_request_form_factory, AdditionalInfoForm, ReasonForm, ApproveForm, RejectedReasonForm, action_rejected_form_factory
 from urllib.parse import urlencode
 from .models import Approver, Services, User, Request, RequestItem, RequestorDetails, Teams, AccountsCreator#, RequestServices
 from django.utils.encoding import force_bytes, force_text
@@ -196,84 +196,25 @@ class user_email(FormView):
         return url + '?' + urlencode(context)
 
 
-####### Remove this function not needed anymore
-# class user_end(FormView):
-#     template_name = 'basic-post.html'
-#     form_class = UserEndForm
-#     success_url = reverse_lazy('access_reason')#('user_details')
-#
-#     def dispatch(self, request, *args, **kwargs):
-#         if not reverse('user_email') in self.request.META.get('HTTP_REFERER', ''):
-#             if not reverse('user_end') in self.request.META.get('HTTP_REFERER', ''):
-#                 return redirect('home_page')
-#
-#         return super().dispatch(request, *args, **kwargs)
-#
-#     def get_form_kwargs(self):
-#
-#         kwargs = super(user_end, self).get_form_kwargs()
-#         self.email = self.request.GET['email']
-#         self.user_email = self.request.GET['user_email']
-#         self.team=self.request.GET['team']
-#         self.behalf_status=self.request.GET['behalf']
-#         # kwargs.update({'behalf': self.behalf_status})
-#         return kwargs
-#
-#     def form_valid(self, form):
-#         #self.email = self.request.user.email
-#         #import pdb; pdb.set_trace()
-#
-#         if self.behalf_status == 'True':
-#             #self.user_email = form.cleaned_data['user_email']
-#             firstname = form.cleaned_data['firstname']
-#             surname = form.cleaned_data['surname']
-#
-#         else:
-#             self.user_email = self.email
-#             firstname = self.request.user.first_name
-#             surname = self.request.user.last_name
-#         #import pdb; pdb.set_trace()
-#         User.objects.update_or_create(
-#             defaults={
-#             'firstname': firstname,
-#             'surname': surname,
-#             #'end_date': form.cleaned_data['end_date'],
-#             'team': Teams.objects.get(id=self.team)
-#             },
-#             email=self.user_email
-#             )
-#
-#         RequestorDetails.objects.update_or_create(
-#             defaults={
-#             'firstname': self.request.user.first_name,
-#             'surname': self.request.user.last_name,
-#             },
-#             email=self.email
-#             )
-#
-#         return super().form_valid(form)
-#
-#     def get_success_url(self):
-#         url = super().get_success_url()
-#         context = {'email': self.email, 'user_email': self.user_email, 'behalf': self.behalf_status}
-#         return url + '?' + urlencode(context)
+def get_email_address(staff_name):
 
+    response = requests.get('https://sso.trade.gov.uk/api/v1/user/search/',
+                    params={'autocomplete': staff_name},
+                    headers={'Authorization': f'Bearer {settings.SSO_INTROS_TOKEN}'})
+
+    if response.status_code == requests.codes.ok:
+        #import pdb; pdb.set_trace()
+        user_data = response.json()
+        email_address = user_data['results'][0]['email']
+    else:
+        messages.info(self.request, 'This user is not in the staff sso database')
+
+    return (email_address)
 
 class access_reason(FormView):
-    template_name = 'basic-post.html'
+    template_name = 'approve-access.html'
     form_class = AccessReasonForm
     success_url = reverse_lazy('user_details')
-    # def __init__(self,*args,**kwargs):
-    #     import pdb; pdb.set_trace()
-    #     self.email = kwargs.pop('email')
-    #     super(StylesForm,self).__init__(*args,**kwargs)
-    #def get_form_kwargs(self):
-
-        # kwargs = super(access_reason, self).get_form_kwargs()
-        # #import pdb; pdb.set_trace()
-        # self.email_status=self.request.GET['email']
-        # kwargs.update({'email': self.email_status})
-        # return kwargs
 
     def dispatch(self, request, *args, **kwargs):
         #kwargs = super(access_reason, self).get_form_kwargs()
@@ -283,7 +224,8 @@ class access_reason(FormView):
             if not reverse('home_page') in self.request.META.get('HTTP_REFERER', ''):
                 if not reverse('add_self') in self.request.META.get('HTTP_REFERER', ''):
                     if not reverse('access_reason') in self.request.META.get('HTTP_REFERER', ''):
-                        return redirect('home_page')
+                        if not reverse('staff_lookup') in self.request.META.get('HTTP_REFERER', ''):
+                            return redirect('home_page')
         #import pdb; pdb.set_trace()
         #self.email_status=self.request.GET['email']
         #kwargs.update({'email': self.email_status})
@@ -292,19 +234,26 @@ class access_reason(FormView):
     def get_form_kwargs(self,  **kwargs):
         kwargs = super(access_reason, self).get_form_kwargs(**kwargs)
         #import pdb; pdb.set_trace()
-        kwargs['user_email'] = self.request.GET['user_email']
-        kwargs['behalf'] = self.request.GET['behalf']
+        # Dont like this, but will function for now.
+
+        try:
+            self.request.GET['chosen_staff']
+        except:
+            print("no value set yet")
+        else:
+            kwargs['chosen_staff'] = self.request.GET['chosen_staff']
         return kwargs
 
     def form_valid(self, form):
         approver = form.cleaned_data['approver']
-        #reason=form.cleaned_data['reason']
-        #team=form.cleaned_data['team']
+
+        approver_email = get_email_address(approver)
+
         self.context = {
             'email': self.request.GET['email'],
             'user_email': self.request.GET['user_email'],
             'behalf': self.request.GET['behalf'],
-            'approver': approver
+            'approver': approver_email
             #'team': team,
             # 'reason': reason
             }
@@ -314,6 +263,46 @@ class access_reason(FormView):
     def get_success_url(self):
         url = super().get_success_url()
         return url + '?' + urlencode(self.context)
+
+class staff_lookup(FormView):
+    template_name = 'staff-lookup.html'
+    form_class = StaffLookupForm
+    success_url = reverse_lazy('staff_lookup')
+    #import pdb; pdb.set_trace()
+    def dispatch(self, request, *args, **kwargs):
+        #kwargs = super(access_reason, self).get_form_kwargs()
+
+        if not reverse('staff_lookup') in self.request.META.get('HTTP_REFERER', ''):
+            if not reverse('access_reason') in self.request.META.get('HTTP_REFERER', ''):
+                return redirect('home_page')
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        response = requests.get('https://sso.trade.gov.uk/api/v1/user/search/',
+                        params={'autocomplete': form.cleaned_data['searchname']},
+                        headers={'Authorization': f'Bearer {settings.SSO_INTROS_TOKEN}'})
+
+        if response.status_code == requests.codes.ok:
+            #import pdb; pdb.set_trace()
+            staff_list =[]
+            user_data = response.json()
+            for staff in user_data['results']:
+                # This line exclude the person raising the request from being the approveer.
+                ###########2 lines commented whilst testing.
+                # if staff['email'] != self.request.user.email:
+                #     staff_list.append(staff['first_name'] + ' ' + staff['last_name'])
+
+                #Comment this line when done with testing.
+                staff_list.append(staff['first_name'] + ' ' + staff['last_name'])
+
+            results = staff_list
+            context = self.get_context_data()
+            context['results'] = results
+            return self.render_to_response(context)
+        else:
+            messages.info(self.request, 'This user is not in the staff sso database')
+            return redirect('/staff-lookup/')
 
 
 def get_token():
@@ -352,13 +341,18 @@ class user_details(FormView):
         return kwargs
 
     def form_valid(self, form):
+
         user_email = self.request.GET['user_email']
         requestor = self.request.GET['email']
         behalf = self.request.GET['behalf']
-        approver = Approver.objects.get(id=self.request.GET['approver'])
+        approver = Approver.objects.get(email=self.request.GET['approver'])
+        #approver = self.request.GET['approver']
         #team=self.request.GET['team']
         #reason = self.request.GET['reason']
+
+        ###Need to look at getting rid of tokens, not needed anymore
         token = get_token()
+
         request = Request.objects.create(
                         requestor=requestor,
                         #reason=reason,
@@ -366,7 +360,7 @@ class user_details(FormView):
                         token=token,
                         #team=team,
                         user_email=user_email)
-        #import pdb; pdb.set_trace()
+
 
         request.add_request_items(form.cleaned_data['services'])
         #def add_item(form.cleaned_data['services']):
@@ -382,10 +376,9 @@ class user_details(FormView):
         User.objects.filter(email=user_email).update(request_id=request.id)
 
         #WHILST TESTING
-        #import pdb; pdb.set_trace()
-        # google_analytics_id = Services.objects.get(service_name='google analytics')
-        # if google_analytics_id.id not in form.cleaned_data['services']:
-            # send_mails(token, request.approver, request.id, user_email)#, self.request.scheme, self.request.get_host())
+        google_analytics_id = Services.objects.get(service_name='google analytics')
+        if google_analytics_id.id not in form.cleaned_data['services']:
+            send_mails(token, request.approver, request.id, user_email)#, self.request.scheme, self.request.get_host())
         ga = False
         github = False
         ukgovpaas = False
@@ -515,7 +508,7 @@ class reason(FormView):
 
     def form_valid(self, form):
         #service_objects = json.loads(self.services)
-        import pdb; pdb.set_trace()
+        #import pdb; pdb.set_trace()
         #print(self.request_id)
         Request.objects.filter(id=self.request_id).update(reason=form.cleaned_data['reason'])
         # send_approvals_email(str(self.request_id), str(self.approver))

@@ -183,16 +183,18 @@ def get_approver_list(email_exclude, behalf_status):
 
 class AccessReasonForm(GOVUKForm):
     def __init__(self, *args, **kwargs):
-        email_exclude = kwargs.pop('user_email')
-        behalf_status = kwargs.pop('behalf')
-        super().__init__(*args, **kwargs)
-        self.fields['approver'].choices = get_approver_list(email_exclude, behalf_status)
-        #self.fields['team'].choices = get_teams_list()
 
-    #approver_list = get_approver_list
-    #reason = forms.CharField(label='Short description on why you need access:', widget=widgets.Textarea())
-    #team = forms.ChoiceField(label='Which team:', choices=[], widget=widgets.Select())
-    approver = forms.ChoiceField(label='Person who will approve access:', choices=[], widget=widgets.Select())
+        self._chosen_staff = kwargs.pop('chosen_staff', None)
+        super().__init__(*args, **kwargs)
+
+        if self._chosen_staff == None:
+            self.fields['approver'].disabled = True
+        else:
+            self.fields['approver'].disabled = False
+            self.fields['approver'].initial = self._chosen_staff
+
+    #approver = forms.ChoiceField(label='Person who will approve access:', choices=[], widget=widgets.Select())
+    approver = forms.CharField(label='This person has been chosen to approve access:', widget=widgets.TextInput())
 
 # def action_request_form_factory(post=None):
 #     forms = []
@@ -200,6 +202,22 @@ class AccessReasonForm(GOVUKForm):
 #          forms.append(DeactivateForm(prefix=item, post=post))
 #
 #     return forms
+
+def get_staff_list():
+
+    staff_list=[]
+
+    return staff_list
+
+class StaffLookupForm(GOVUKForm):
+    # def __init__(self, *args, **kwargs):
+    #     #import pdb; pdb.set_trace()
+    #     super().__init__(*args, **kwargs)
+    #     self.fields['staff_list'].choices = get_staff_list()
+
+    searchname = forms.CharField(label='Name:', max_length=60, widget=widgets.TextInput())
+
+    # staff_list = forms.MultipleChoiceField(label='which staff member', choices=[], widget=widgets.CheckboxSelectMultiple)
 
 class ReasonForm(GOVUKForm):
     def __init__(self, *args, **kwargs):
@@ -298,13 +316,16 @@ def get_approver_list(email_exclude, behalf_status):
 
 
 def get_service_list(user_email):
-
+    #import pdb; pdb.set_trace()
+    if Request.objects.values_list('id', flat=True).filter(user_email=user_email):
     #approved_items = Request.objects.values_list('id', flat=True).filter(user_email=user_email, completed=True)
-    approved_requests = Request.objects.values_list('id', flat=True).filter(user_email=user_email)
-    approved_items = RequestItem.objects.values_list('services_id', flat=True).filter(request_id__in=approved_requests, completed=True)
+        approved_requests = Request.objects.values_list('id', flat=True).filter(user_email=user_email)
+        approved_items = RequestItem.objects.values_list('services_id', flat=True).filter(request_id__in=approved_requests, completed=True)
     # Get services not already assigned.
-
-    services_list = Services.objects.exclude(id__in=approved_items).values_list()
+        services_list = Services.objects.exclude(id__in=approved_items).values_list('services_id', 'service_name')
+    else:
+        # Get all services.
+        services_list = Services.objects.values_list('id', 'service_name')
 
     return services_list
 
