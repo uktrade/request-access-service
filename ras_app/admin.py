@@ -5,7 +5,7 @@ from .models import Approver, Services, User, Request, RequestItem, AccountsCrea
 
 @admin.register(Approver)
 class approver_admin(admin.ModelAdmin):
-	list_display = ('firstname', 'surname', 'email')
+	list_display = ('first_name', 'last_name', 'email')
 
 @admin.register(Services)
 class service_admin(admin.ModelAdmin):
@@ -29,8 +29,8 @@ class service_admin(admin.ModelAdmin):
 
 @admin.register(User)
 class User_admin(admin.ModelAdmin):
-	list_display = ('firstname', 'surname', 'get_team', 'email', 'request', 'get_services')
-	#list_display = ('firstname', 'surname', 'get_team', 'email', 'end_date', 'request', 'get_services')
+	list_display = ('first_name', 'last_name', 'get_team', 'email', 'request', 'get_services')
+	#list_display = ('first_name', 'last_name', 'get_team', 'email', 'end_date', 'request', 'get_services')
 	#filter_horizontal = ('request',)
 	def get_services(self, obj):
 		#import pdb; pdb.set_trace()
@@ -54,7 +54,7 @@ class User_admin(admin.ModelAdmin):
 
 @admin.register(AccountsCreator)
 class AccountsCreator_admin(admin.ModelAdmin):
-	list_display = ('firstname', 'surname', 'email', 'get_services', 'uuid')
+	list_display = ('first_name', 'last_name', 'email', 'get_services', 'uuid')
 	filter_horizontal = ('services',)
 
 	def get_services(self, obj):

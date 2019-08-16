@@ -25,13 +25,14 @@
       </div>
       <p></p>
 
-      {% if results %}
+      {% if staff_list %}
       <p>--------------------------------------------------------------------------------------------------------------------------</p>
       <p></p>
       <p>Please select the name of the person who should approve your access.</p>
       <ul style="list-style-type:none">
-        {% for result in results %}
-            <li><a href="/access-reason/?{{ request.GET.urlencode }}&chosen_staff={{ result }}">{{ result }}</a></li>
+        {% for staff in staff_list %}
+            <!-- <li><a href="/access-reason/?{{ request.GET.urlencode }}&chosen_staff={{ result }}">{{ result }}</a></li> -->
+            <li><a href="{{ referer_path }}?{{ request.GET.urlencode }}&chosen_staff={{ staff }}">{{ staff }}</a></li>
         {% endfor %}
       </ul>
      {% endif %}

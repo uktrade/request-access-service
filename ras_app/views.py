@@ -1,244 +1,199 @@
 import json
 import requests
-from django.shortcuts import render, redirect
 
-from django.urls import reverse_lazy
-from .forms import UserForm, ActionRequestsForm, AddSelfForm, RejectForm, UserDetailsForm, AccessReasonForm, StaffLookupForm, UserEmailForm, DeactivateForm, action_request_form_factory, AdditionalInfoForm, ReasonForm, ApproveForm, RejectedReasonForm, action_rejected_form_factory
+from .forms import (
+    StartForm, ActionRequestsForm, AddSelfForm, RejectForm, UserDetailsForm,
+    AccessApproverForm, StaffLookupForm, AddNewUserForm, action_request_form_factory,
+    AdditionalInfoForm, ReasonForm, ApproveForm, action_rejected_form_factory)
+from .models import (
+    Approver, Services, User, Request, RequestItem, RequestorDetails, Teams,
+    AccountsCreator)
+from .email import (
+    send_approvals_email, send_requester_email, send_accounts_creator_email,
+    send_completed_email, send_end_user_email)
+
 from urllib.parse import urlencode
-from .models import Approver, Services, User, Request, RequestItem, RequestorDetails, Teams, AccountsCreator#, RequestServices
-from django.utils.encoding import force_bytes, force_text
-from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 
-from django.template.loader import render_to_string, get_template
-from django.template import Template
-from .email import send_approvals_email, send_requester_email, send_accounts_creator_email, send_completed_email, send_end_user_email
+from django.template.loader import render_to_string
 from django.views.generic.edit import FormView
 from django.views import View, generic
-
-from django.contrib.auth.tokens import default_token_generator
 from django.urls import reverse
 from django.http import HttpResponse
 from django.conf import settings
 from django.contrib import messages
-
 from django.utils import timezone
 from django.utils.crypto import get_random_string
+from django.shortcuts import render, redirect
+from django.urls import reverse_lazy
 
-from django.contrib.auth.decorators import login_required
+# def get_user_dets(self):
+#
+#     response = requests.get('https://sso.trade.gov.uk/api/v1/user/introspect/',
+#                     params={'email': self.user_email},
+#                     headers={'Authorization': f'Bearer {settings.SSO_INTROS_TOKEN}'})
+#
+#     if response.status_code == requests.codes.ok:
+#         user_data = response.json()
+#         self.first_name = user_data['first_name']
+#         self.last_name = user_data['last_name']
+#         return self #first_name, last_name
+#
+#     else:
+#         messages.info(self.request, 'This user is not in the staff sso database')
+#         return redirect('user_email')
 
-# Create your views here.
 
-def get_user_dets(self):
+def get_email_address(staff_name):
 
-    #import pdb; pdb.set_trace()
-    #header = "'Authorization': 'Bearer " + settings.SSO_INTROS_TOKEN + "'"
-
-    response = requests.get('https://sso.trade.gov.uk/api/v1/user/introspect/',
-                    params={'email': self.user_email},
-                    headers={'Authorization': f'Bearer {settings.SSO_INTROS_TOKEN}'})
-                    #headers={header})
+    response = requests.get(
+        'https://sso.trade.gov.uk/api/v1/user/search/',
+        params={'autocomplete': staff_name},
+        headers={'Authorization': f'Bearer {settings.SSO_INTROS_TOKEN}'})
 
     if response.status_code == requests.codes.ok:
         user_data = response.json()
-        self.firstname = user_data['first_name']
-        self.surname = user_data['last_name']
-        return self #firstname, surname
-
+        email_address = user_data['results'][0]['email']
     else:
         messages.info(self.request, 'This user is not in the staff sso database')
-        return redirect('user_email')
+    return (email_address)
 
 
-#@login_required(login_url='/landing-page/')
 class home_page(FormView):
     template_name = 'home-page.html'
-    form_class = UserForm
+    form_class = StartForm
 
     def form_valid(self, form):
-        self.behalf = False
-
-        if form.cleaned_data['needs_access'] == 'behalf':
-            self.behalf = True
-            self.context = {'behalf': self.behalf}
+        self.on_behalf = False
+        if form.cleaned_data['needs_access'] == 'on_behalf':
+            self.on_behalf = True
+            self.context = {'on_behalf': self.on_behalf}
         else:
-            #import pdb; pdb.set_trace()
-            self.context = {'email': self.request.user.email, 'user_email': self.request.user.email, 'behalf': False}
-            #Check if user exists.
-
+            self.context = {
+                'email': self.request.user.email,
+                'user_email': self.request.user.email,
+                'on_behalf': False}
+            # Check if user exists.
             if User.objects.filter(email=self.request.user.email).exists():
-                self.success_url = reverse_lazy('access_reason')
+                self.success_url = reverse_lazy('access_approver')
             else:
-                #Add user to DB
                 self.success_url = reverse_lazy('add_self')
-
-
             return super().form_valid(form)
 
-        self.success_url = reverse_lazy('user_email')
+        self.success_url = reverse_lazy('add_new_user')
         return super().form_valid(form)
 
     def get_success_url(self):
         url = super().get_success_url()
-        #context = {'behalf': self.behalf}
         return url + '?' + urlencode(self.context)
 
 
 class add_self(FormView):
     template_name = 'basic-post.html'
-    form_class =AddSelfForm
-    #success_url = reverse_lazy('user_end')
+    form_class = AddSelfForm
 
     def dispatch(self, request, *args, **kwargs):
         if not reverse('home_page') in self.request.META.get('HTTP_REFERER', ''):
             if not reverse('add_self') in self.request.META.get('HTTP_REFERER', ''):
                 return redirect('home_page')
-
         return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form):
-        #import pdb; pdb.set_trace()
-        self.behalf_status = self.request.GET['behalf']
+        self.on_behalf_status = self.request.GET['on_behalf']
 
-        User.objects.update_or_create(
-            defaults={
-            'firstname': self.request.user.first_name,
-            'surname': self.request.user.last_name,
-            #'end_date': form.cleaned_data['end_date'],
-            'team': Teams.objects.get(id=form.cleaned_data['team'])
-            },
-            email=self.request.user.email
-            )
-        self.success_url = reverse_lazy('access_reason')
-
+        User.objects.update_or_create(defaults={
+            'first_name': self.request.user.first_name,
+            'last_name': self.request.user.last_name,
+            'team': Teams.objects.get(id=form.cleaned_data['team'])},
+            email=self.request.user.email)
+        self.success_url = reverse_lazy('access_approver')
         return super().form_valid(form)
 
     def get_success_url(self):
         url = super().get_success_url()
-        context = {'email': self.request.user.email, 'user_email': self.request.user.email, 'behalf': self.behalf_status}
+        context = {
+            'email': self.request.user.email,
+            'user_email': self.request.user.email,
+            'on_behalf': self.on_behalf_status}
         return url + '?' + urlencode(context)
 
 
-class user_email(FormView):
-    template_name = 'basic-post.html'
-    form_class = UserEmailForm
-    #success_url = reverse_lazy('user_end')
+class add_new_user(FormView):
+    template_name = 'add-new-user.html'
+    form_class = AddNewUserForm
 
     def dispatch(self, request, *args, **kwargs):
         if not reverse('home_page') in self.request.META.get('HTTP_REFERER', ''):
-            if not reverse('user_email') in self.request.META.get('HTTP_REFERER', ''):
-                return redirect('home_page')
-
+            if not reverse('add_new_user') in self.request.META.get('HTTP_REFERER', ''):
+                if not reverse('staff_lookup') in self.request.META.get('HTTP_REFERER', ''):
+                    return redirect('home_page')
         return super().dispatch(request, *args, **kwargs)
 
+    def get_form_kwargs(self, **kwargs):
+        kwargs = super(add_new_user, self).get_form_kwargs(**kwargs)
+        # Dont like this, but will function for now.
+        try:
+            self.request.GET['chosen_staff']
+        except Exception:
+            print("no value set yet")
+        else:
+            kwargs['chosen_staff'] = self.request.GET['chosen_staff']
+        return kwargs
 
     def form_valid(self, form):
-        #import pdb; pdb.set_trace()
+        self.team = form.cleaned_data['team']
+        user = form.cleaned_data['user']
+
+        self.user_email = get_email_address(user)
         self.email = self.request.user.email
-        self.user_email = form.cleaned_data['user_email']
-        self.behalf_status=self.request.GET['behalf']
-        self.team=form.cleaned_data['team']
+        self.on_behalf_status = self.request.GET['on_behalf']
 
         if User.objects.filter(email=self.user_email).exists():
-            #return redirect('access_reason')
-            #context = {'email': self.email, 'user_email': self.user_email, 'behalf': self.behalf_status}
-            self.success_url = reverse_lazy('access_reason')
-            #return super().form_valid(form)
+            self.success_url = reverse_lazy('access_approver')
         else:
-            #firstname, surname = get_user_dets(self)
-            #get_user_dets(self)
-            #import pdb; pdb.set_trace()
+            # Add the user to the DB
+            User.objects.update_or_create(defaults={
+                'first_name': user.split(None, 1)[0],
+                'last_name': user.split(None, 1)[1],
+                'team': Teams.objects.get(id=self.team)}, email=self.user_email)
 
-            response = requests.get('https://sso.trade.gov.uk/api/v1/user/introspect/',
-                            params={'email': self.user_email},
-                            headers={'Authorization': f'Bearer {settings.SSO_INTROS_TOKEN}'})
-                            #headers={header})
+            RequestorDetails.objects.update_or_create(defaults={
+                'first_name': self.request.user.first_name,
+                'last_name': self.request.user.last_name}, email=self.email)
 
-            if response.status_code == requests.codes.ok:
-                user_data = response.json()
-                self.firstname = user_data['first_name']
-                self.surname = user_data['last_name']
-                #return self #firstname, surname
-
-            else:
-                messages.info(self.request, 'This user is not in the staff sso database')
-                #return redirect('user_email')
-                #context = {'behalf': True}
-                #response = user_email(self.request, context)
-                #return response
-                return redirect('/user-email/?behalf=True')
-
-            User.objects.update_or_create(
-                defaults={
-                'firstname': self.firstname,
-                'surname': self.surname,
-                #'end_date': form.cleaned_data['end_date'],
-                'team': Teams.objects.get(id=self.team)
-                },
-                email=self.user_email
-                )
-
-            RequestorDetails.objects.update_or_create(
-                defaults={
-                'firstname': self.request.user.first_name,
-                'surname': self.request.user.last_name,
-                },
-                email=self.email
-                )
-
-            self.success_url = reverse_lazy('access_reason')
-            #self.success_url = reverse_lazy('user_end')
-
+            self.success_url = reverse_lazy('access_approver')
         return super().form_valid(form)
 
     def get_success_url(self):
         url = super().get_success_url()
-        context = {'email': self.email, 'user_email': self.user_email, 'team': self.team, 'behalf': self.behalf_status}
+        context = {
+            'email': self.email,
+            'user_email': self.user_email,
+            'team': self.team,
+            'on_behalf': self.on_behalf_status}
         return url + '?' + urlencode(context)
 
 
-def get_email_address(staff_name):
-
-    response = requests.get('https://sso.trade.gov.uk/api/v1/user/search/',
-                    params={'autocomplete': staff_name},
-                    headers={'Authorization': f'Bearer {settings.SSO_INTROS_TOKEN}'})
-
-    if response.status_code == requests.codes.ok:
-        #import pdb; pdb.set_trace()
-        user_data = response.json()
-        email_address = user_data['results'][0]['email']
-    else:
-        messages.info(self.request, 'This user is not in the staff sso database')
-
-    return (email_address)
-
-class access_reason(FormView):
-    template_name = 'approve-access.html'
-    form_class = AccessReasonForm
+class access_approver(FormView):
+    template_name = 'access-approver.html'
+    form_class = AccessApproverForm
     success_url = reverse_lazy('user_details')
 
     def dispatch(self, request, *args, **kwargs):
-        #kwargs = super(access_reason, self).get_form_kwargs()
-
-        #if not reverse('user_end') in self.request.META.get('HTTP_REFERER', ''):
-        if not reverse('user_email') in self.request.META.get('HTTP_REFERER', ''):
+        if not reverse('add_new_user') in self.request.META.get('HTTP_REFERER', ''):
             if not reverse('home_page') in self.request.META.get('HTTP_REFERER', ''):
                 if not reverse('add_self') in self.request.META.get('HTTP_REFERER', ''):
-                    if not reverse('access_reason') in self.request.META.get('HTTP_REFERER', ''):
-                        if not reverse('staff_lookup') in self.request.META.get('HTTP_REFERER', ''):
+                    if not reverse('access_approver') in self.request.META.get('HTTP_REFERER', ''):
+                        if not reverse('staff_lookup') in self.request.META.get(
+                                'HTTP_REFERER', ''):
                             return redirect('home_page')
-        #import pdb; pdb.set_trace()
-        #self.email_status=self.request.GET['email']
-        #kwargs.update({'email': self.email_status})
         return super().dispatch(request, *args, **kwargs)
 
-    def get_form_kwargs(self,  **kwargs):
-        kwargs = super(access_reason, self).get_form_kwargs(**kwargs)
-        #import pdb; pdb.set_trace()
+    def get_form_kwargs(self, **kwargs):
+        kwargs = super(access_approver, self).get_form_kwargs(**kwargs)
         # Dont like this, but will function for now.
-
         try:
             self.request.GET['chosen_staff']
-        except:
+        except Exception:
             print("no value set yet")
         else:
             kwargs['chosen_staff'] = self.request.GET['chosen_staff']
@@ -246,59 +201,61 @@ class access_reason(FormView):
 
     def form_valid(self, form):
         approver = form.cleaned_data['approver']
-
         approver_email = get_email_address(approver)
 
         self.context = {
             'email': self.request.GET['email'],
             'user_email': self.request.GET['user_email'],
-            'behalf': self.request.GET['behalf'],
-            'approver': approver_email
-            #'team': team,
-            # 'reason': reason
-            }
-
+            'on_behalf': self.request.GET['on_behalf'],
+            'approver': approver_email}
         return super().form_valid(form)
 
     def get_success_url(self):
         url = super().get_success_url()
         return url + '?' + urlencode(self.context)
 
+
 class staff_lookup(FormView):
     template_name = 'staff-lookup.html'
     form_class = StaffLookupForm
     success_url = reverse_lazy('staff_lookup')
-    #import pdb; pdb.set_trace()
+
     def dispatch(self, request, *args, **kwargs):
-        #kwargs = super(access_reason, self).get_form_kwargs()
-
         if not reverse('staff_lookup') in self.request.META.get('HTTP_REFERER', ''):
-            if not reverse('access_reason') in self.request.META.get('HTTP_REFERER', ''):
-                return redirect('home_page')
-
+            if not reverse('add_new_user') in self.request.META.get('HTTP_REFERER', ''):
+                if not reverse('access_approver') in self.request.META.get('HTTP_REFERER', ''):
+                    return redirect('home_page')
         return super().dispatch(request, *args, **kwargs)
 
+    def get(self, request, *args, **kwargs):
+        self.request.session['_referer'] = request.META.get('HTTP_REFERER', '')
+        return super().get(request, *args, **kwargs)
+
     def form_valid(self, form):
-        response = requests.get('https://sso.trade.gov.uk/api/v1/user/search/',
-                        params={'autocomplete': form.cleaned_data['searchname']},
-                        headers={'Authorization': f'Bearer {settings.SSO_INTROS_TOKEN}'})
+        response = requests.get(
+            'https://sso.trade.gov.uk/api/v1/user/search/',
+            params={'autocomplete': form.cleaned_data['searchname']},
+            headers={'Authorization': f'Bearer {settings.SSO_INTROS_TOKEN}'})
 
         if response.status_code == requests.codes.ok:
-            #import pdb; pdb.set_trace()
-            staff_list =[]
+            staff_list = []
             user_data = response.json()
             for staff in user_data['results']:
                 # This line exclude the person raising the request from being the approveer.
-                ###########2 lines commented whilst testing.
+                # 2 lines commented whilst testing.
                 # if staff['email'] != self.request.user.email:
                 #     staff_list.append(staff['first_name'] + ' ' + staff['last_name'])
 
-                #Comment this line when done with testing.
+                # Comment this line when done with testing.
                 staff_list.append(staff['first_name'] + ' ' + staff['last_name'])
 
-            results = staff_list
             context = self.get_context_data()
-            context['results'] = results
+            context['staff_list'] = staff_list
+
+            if 'add-new-user' in self.request.session['_referer']:
+                context['referer_path'] = '/add-new-user/'
+            else:
+                context['referer_path'] = '/access-approver/'
             return self.render_to_response(context)
         else:
             messages.info(self.request, 'This user is not in the staff sso database')
@@ -328,7 +285,7 @@ class user_details(FormView):
 
     def dispatch(self, request, *args, **kwargs):
         #import pdb; pdb.set_trace()
-        if not reverse('access_reason') in self.request.META.get('HTTP_REFERER', ''):
+        if not reverse('access_approver') in self.request.META.get('HTTP_REFERER', ''):
             if not reverse('user_details') in self.request.META.get('HTTP_REFERER', ''):
                 return redirect('home_page')
 
@@ -344,7 +301,7 @@ class user_details(FormView):
 
         user_email = self.request.GET['user_email']
         requestor = self.request.GET['email']
-        behalf = self.request.GET['behalf']
+        on_behalf = self.request.GET['on_behalf']
         approver = Approver.objects.get(email=self.request.GET['approver'])
         #approver = self.request.GET['approver']
         #team=self.request.GET['team']
@@ -814,5 +771,5 @@ class request_status(generic.ListView):
 #
 #     def get_success_url(self):
 #         url = super().get_success_url()
-#         context = {'behalf': self.behalf}
+#         context = {'on_behalf': self.on_behalf}
 #         return url + '?' + urlencode(self.context)

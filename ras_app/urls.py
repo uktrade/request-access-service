@@ -1,9 +1,12 @@
 from django.conf.urls import url
+
 from . import views
+from .views import (
+    user_details, home_page, add_new_user, add_self, access_approver, staff_lookup, reject_access,
+    action_requests, reason, additional_info, approve, rejected_reason, request_status)
+
 from django.urls import path, include, re_path
-from .views import user_details, home_page, user_email, add_self, access_reason, staff_lookup, reject_access, action_requests, reason, deactivate, additional_info, approve, rejected_reason, request_status
 from django.contrib.auth.decorators import login_required
-from django.conf import settings
 from django.views.generic import RedirectView
 
 urlpatterns = [
@@ -11,7 +14,10 @@ urlpatterns = [
     path('home/', login_required(home_page.as_view()), name='home_page'),
     path('auth/', include('authbroker_client.urls', namespace='authbroker')),
     path('add-self/', add_self.as_view(), name='add_self'),
-    path('user-email/', user_email.as_view(), name='user_email'),
+    path('add-new-user/', add_new_user.as_view(), name='add_new_user'),
+    path('access-approver/', access_approver.as_view(), name='access_approver'),
+    path('staff-lookup/', staff_lookup.as_view(), name='staff_lookup'),
+
     #path('user-end/', user_end.as_view(), name='user_end'),
     #re_path(r'^action-requests/(?P<token>[0-9A-Za-z][-\w]{1,36})/$',
     #    action_requests.as_view(), name='action_requests'),
@@ -25,8 +31,8 @@ urlpatterns = [
     #url(r'^activate/(?P<uidb64>[0-9A-Za-z_\-]+)/(?P<token>[0-9A-Za-z]{1,20})/$',
         #views.activate, name='activate'),
     path('user-details/', user_details.as_view(), name='user_details'),
-    path('access-reason/', access_reason.as_view(), name='access_reason'),
-    path('staff-lookup/', staff_lookup.as_view(), name='staff_lookup'),
+    path('access-reason/', access_approver.as_view(), name='access_approver'),
+
     path('additional-info/', additional_info.as_view(), name='additional_info'),
     path('reason/', reason.as_view(), name='reason'),
     #path('deactivate/', deactivate.as_view(), name='deactivate'),

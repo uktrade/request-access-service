@@ -1,89 +1,86 @@
 import datetime as dt
 import json
 
-from django import forms
-
 from .models import Approver, Services, User, Request, AccountsCreator, RequestItem, Teams
 
-from django.forms.widgets import CheckboxSelectMultiple
-from django.contrib.auth.forms import UserCreationForm
+from django import forms
 
 from govuk_forms.forms import GOVUKForm
-from govuk_forms import widgets, fields
-from django.utils.translation import gettext
-from django.utils.timezone import now
+from govuk_forms import widgets
 
 
-ACCESS_CHOICES= [
+ACCESS_CHOICES = [
     ('myeslf', 'Yes'),
-    ('behalf', 'No, on the behalf of someone else'),
-    ]
+    ('on_behalf', 'No, on the behalf of someone else.'), ]
 
-ACTION_REQUESTS= [
+ACTION_REQUESTS = [
     ('yes', 'Yes'),
-    ('no', 'No'),
-    ]
+    ('no', 'No'), ]
 
-class UserForm(GOVUKForm):
-    needs_access = forms.ChoiceField(label='Are you requesting access for yourself?', choices=ACCESS_CHOICES, widget=widgets.Select())
+
+class StartForm(GOVUKForm):
+    needs_access = forms.ChoiceField(
+        label='Are you requesting access for yourself?',
+        choices=ACCESS_CHOICES,
+        widget=widgets.Select())
 
 
 def get_teams_list():
-    #import pdb; pdb.set_trace()
     return Teams.objects.values_list('id', 'team_name').order_by('team_name')
+
 
 class AddSelfForm(GOVUKForm):
     def __init__(self, *args, **kwargs):
-        #behalf_status = kwargs.pop('behalf')
         super().__init__(*args, **kwargs)
         self.fields['team'].choices = get_teams_list()
 
-    # end_date = fields.SplitDateField(
-    #     label='End Date of Contract',
-    #     min_year=dt.date.today().year,
-    #     max_year=dt.date.today().year + 10,
-    # )
-    team = forms.ChoiceField(label='Which team:', choices=[], widget=widgets.Select())
+    team = forms.ChoiceField(label='Which team are you in:', choices=[], widget=widgets.Select())
 
-class UserEmailForm(GOVUKForm):
+
+class AddNewUserForm(GOVUKForm):
     def __init__(self, *args, **kwargs):
-        #behalf_status = kwargs.pop('behalf')
+        self._chosen_staff = kwargs.pop('chosen_staff', None)
         super().__init__(*args, **kwargs)
         self.fields['team'].choices = get_teams_list()
 
-    user_email = forms.CharField(label='Users E-mail (person who needs access)', max_length=60, widget=widgets.TextInput())
-    team = forms.ChoiceField(label='Which team:', choices=[], widget=widgets.Select())
+        if self._chosen_staff is None:
+            self.fields['user'].disabled = True
+        else:
+            self.fields['user'].disabled = False
+            self.fields['user'].initial = self._chosen_staff
 
-# class UserEndForm(GOVUKForm):
-#     #user_email = forms.CharField(label='Users E-mail (person who needs access)', max_length=60, widget=widgets.TextInput())
-#     firstname = forms.CharField(label='Users Firstname', max_length=60, widget=widgets.TextInput())
-#     surname = forms.CharField(label='Users Surname', max_length=60, required=False, widget=widgets.TextInput())
-#     #end_date = SplitDateFieldsWTF()
-#     # end_date = fields.SplitDateField(
-#     #     label='End Date of Contract',
-#     #     min_year=dt.date.today().year,
-#     #     max_year=dt.date.today().year + 10,
-#     # )
-#
-#     # def __init__(self, *args, **kwargs):
-#     #     #import pdb; pdb.set_trace()
-#     #     behalf = kwargs.pop('behalf')
-#     #     super(UserEndForm, self).__init__(*args, **kwargs)
-#     #     if behalf == 'False':
-#     #         #self.fields['user_email'].widget = forms.HiddenInput()
-#     #         self.fields['firstname'].widget = forms.HiddenInput()
-#     #         self.fields['surname'].widget = forms.HiddenInput()
-#     #         #self.fields['user_email'].required = False
-#     #         self.fields['firstname'].required = False
-#     #         self.fields['surname'].required = False
-#
-#         #import pdb; pdb.set_trace()
-#     # def clean_end_date(self):
-#     #     #import pdb; pdb.set_trace()
-#     #     date = self.cleaned_data['end_date']
-#     #     if date and date < dt.date.today():
-#     #         raise forms.ValidationError('The date cannot be in the past')
-#     #     return date
+    user = forms.CharField(
+        label='Users fullname (person who needs access)',
+        max_length=60,
+        widget=widgets.TextInput())
+    team = forms.ChoiceField(
+        label='Which team:',
+        choices=[],
+        widget=widgets.Select())
+
+
+class AccessApproverForm(GOVUKForm):
+    def __init__(self, *args, **kwargs):
+
+        self._chosen_staff = kwargs.pop('chosen_staff', None)
+        super().__init__(*args, **kwargs)
+
+        if self._chosen_staff is None:
+            self.fields['approver'].disabled = True
+        else:
+            self.fields['approver'].disabled = False
+            self.fields['approver'].initial = self._chosen_staff
+
+    approver = forms.CharField(
+        label='This person has been chosen to approve access:',
+        widget=widgets.TextInput())
+
+
+class StaffLookupForm(GOVUKForm):
+    searchname = forms.CharField(
+        label='Name:',
+        max_length=60,
+        widget=widgets.TextInput())
 
 
 class AdditionalInfoForm(GOVUKForm):
@@ -173,28 +170,12 @@ class ActionRequestsForm(GOVUKForm):
     action = forms.MultipleChoiceField(label='Check which is completed', choices=[], widget=widgets.CheckboxSelectMultiple)
 
 
-def get_approver_list(email_exclude, behalf_status):
+def get_approver_list(email_exclude, on_behalf_status):
     #import pdb; pdb.set_trace()
-    # if behalf_status == 'True':
+    # if on_behalf_status == 'True':
     #     email_exclude = ''
 
     return Approver.objects.values_list('id', 'email').exclude(email = email_exclude)
-
-
-class AccessReasonForm(GOVUKForm):
-    def __init__(self, *args, **kwargs):
-
-        self._chosen_staff = kwargs.pop('chosen_staff', None)
-        super().__init__(*args, **kwargs)
-
-        if self._chosen_staff == None:
-            self.fields['approver'].disabled = True
-        else:
-            self.fields['approver'].disabled = False
-            self.fields['approver'].initial = self._chosen_staff
-
-    #approver = forms.ChoiceField(label='Person who will approve access:', choices=[], widget=widgets.Select())
-    approver = forms.CharField(label='This person has been chosen to approve access:', widget=widgets.TextInput())
 
 # def action_request_form_factory(post=None):
 #     forms = []
@@ -203,28 +184,13 @@ class AccessReasonForm(GOVUKForm):
 #
 #     return forms
 
-def get_staff_list():
-
-    staff_list=[]
-
-    return staff_list
-
-class StaffLookupForm(GOVUKForm):
-    # def __init__(self, *args, **kwargs):
-    #     #import pdb; pdb.set_trace()
-    #     super().__init__(*args, **kwargs)
-    #     self.fields['staff_list'].choices = get_staff_list()
-
-    searchname = forms.CharField(label='Name:', max_length=60, widget=widgets.TextInput())
-
-    # staff_list = forms.MultipleChoiceField(label='which staff member', choices=[], widget=widgets.CheckboxSelectMultiple)
 
 class ReasonForm(GOVUKForm):
     def __init__(self, *args, **kwargs):
         # email_exclude = kwargs.pop('user_email')
-        # behalf_status = kwargs.pop('behalf')
+        # on_behalf_status = kwargs.pop('on_behalf')
         super().__init__(*args, **kwargs)
-        #self.fields['approver'].choices = get_approver_list(email_exclude, behalf_status)
+        #self.fields['approver'].choices = get_approver_list(email_exclude, on_behalf_status)
 
     reason = forms.CharField(label='Short description on why you need access:', widget=widgets.Textarea())
 
@@ -270,7 +236,7 @@ def action_request_form_factory(creator_email, post=None):
 
 def get_approve_list(email):
     #import pdb; pdb.set_trace()
-    # if behalf_status == 'True':
+    # if on_behalf_status == 'True':
     #     email_exclude = ''
     approve_list = []
 
@@ -307,9 +273,9 @@ class ApproveForm(GOVUKForm):
     reject = forms.MultipleChoiceField(label='Check which to reject', choices=[], widget=widgets.CheckboxSelectMultiple)
 
 
-def get_approver_list(email_exclude, behalf_status):
+def get_approver_list(email_exclude, on_behalf_status):
     #import pdb; pdb.set_trace()
-    # if behalf_status == 'True':
+    # if on_behalf_status == 'True':
     #     email_exclude = ''
 
     return Approver.objects.values_list('id', 'email').exclude(email = email_exclude)
@@ -386,7 +352,7 @@ class RejectForm(GOVUKForm):
 #
 # class RequestStatusForm(GOVUKForm):
 #     def __init__(self, *args, **kwargs):
-#         #behalf_status = kwargs.pop('behalf')
+#         #on_behalf_status = kwargs.pop('on_behalf')
 #         super().__init__(*args, **kwargs)
 #         self.fields['team'].choices = get_status_list()
 #

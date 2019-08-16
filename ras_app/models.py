@@ -3,8 +3,8 @@ import uuid
 
 # Create your models here.
 class Approver(models.Model):
-    firstname = models.CharField(max_length=60)
-    surname = models.CharField(max_length=60)
+    first_name = models.CharField(max_length=60)
+    last_name = models.CharField(max_length=60)
     email = models.EmailField()
 
     def __str__(self):
@@ -53,8 +53,8 @@ class RequestItem(models.Model):
     additional_info = models.CharField(max_length=60, blank=True)
 
 class User(models.Model):
-    firstname = models.CharField(max_length=60)
-    surname = models.CharField(max_length=60)
+    first_name = models.CharField(max_length=60)
+    last_name = models.CharField(max_length=60)
     email = models.EmailField(max_length=60)#, unique=True)
     #end_date = models.DateField(null=True)
     team = models.ForeignKey(Teams, on_delete=models.CASCADE)
@@ -64,8 +64,8 @@ class User(models.Model):
         return self.email
 
 class RequestorDetails(models.Model):
-    firstname = models.CharField(max_length=60)
-    surname = models.CharField(max_length=60)
+    first_name = models.CharField(max_length=60)
+    last_name = models.CharField(max_length=60)
     email = models.EmailField(max_length=60)#, unique=True)
     #request = models.ForeignKey(Request, on_delete=models.CASCADE, blank=True, null=True)
 
@@ -73,8 +73,8 @@ class RequestorDetails(models.Model):
         return self.email
 
 class AccountsCreator(models.Model):
-    firstname = models.CharField(max_length=60)
-    surname = models.CharField(blank=True, max_length=60)
+    first_name = models.CharField(max_length=60)
+    last_name = models.CharField(blank=True, max_length=60)
     email = models.EmailField()
     uuid = models.UUIDField(default=uuid.uuid4, editable=False)
     services = models.ManyToManyField(Services)
