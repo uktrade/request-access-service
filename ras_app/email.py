@@ -11,9 +11,9 @@ class Command(BaseCommand):
         #send_approvals_email()
 
 def get_username(user_email):
-    firstname = User.objects.get(email=user_email).firstname
-    surname = User.objects.get(email=user_email).surname
-    person = firstname + ' ' + surname
+    first_name = User.objects.get(email=user_email).first_name
+    last_name = User.objects.get(email=user_email).last_name
+    person = first_name + ' ' + last_name
 
     return person
 
@@ -74,6 +74,33 @@ def send_approvals_email(request_id, approver):
     # )
 
 
+def send_end_user_email(request_id, approver):
+    print ('Sending mail')
+    #print (request_id, requestor, rejection_reason)
+    #import pdb; pdb.set_trace()
+
+    requester, user, team_name, items_to_approve, sc = get_approval_details(request_id)
+    ras_url = 'https://' + settings.DOMAIN_NAME + '/request-status/'
+
+    attention_for = get_username(user)
+    requester = get_username(requester)
+    approver = get_username(approver)
+    ####Comment out whilst testing
+    notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
+    # notifications_client.send_email_notification(
+    #     email_address=user,
+    #     template_id=settings.EMAIL_ENDUSER_UUID,
+    #     personalisation={
+    #         'name': attention_for,
+    #         'requester': requester,
+    #         'approver': approver,
+    #         'request_id': request_id,
+    #         'ras_url': ras_url,
+    #         'services': items_to_approve
+    #     }
+    # )
+
+
 def send_requester_email(request_id, approver, rejection_reason):
     print ('Sending mail')
     #print (request_id, requestor, rejection_reason)
@@ -106,31 +133,7 @@ def send_requester_email(request_id, approver, rejection_reason):
     #     }
     # )
 
-def send_end_user_email(request_id, approver):
-    print ('Sending mail')
-    #print (request_id, requestor, rejection_reason)
-    #import pdb; pdb.set_trace()
 
-    requester, user, team_name, items_to_approve, sc = get_approval_details(request_id)
-    ras_url = 'https://' + settings.DOMAIN_NAME + '/request-status/'
-
-    attention_for = get_username(user)
-    requester = get_username(requester)
-    approver = get_username(approver)
-    ####Comment out whilst testing
-    notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
-    # notifications_client.send_email_notification(
-    #     email_address=user,
-    #     template_id=settings.EMAIL_ENDUSER_UUID,
-    #     personalisation={
-    #         'name': attention_for,
-    #         'requester': requester,
-    #         'approver': approver,
-    #         'request_id': request_id,
-    #         'ras_url': ras_url,
-    #         'services': items_to_approve
-    #     }
-    # )
 
 def send_accounts_creator_email(request_id):
     print ('Sending mail')
@@ -181,15 +184,15 @@ def send_completed_email(completed_tasks):
 
         attention_for = get_username(confirmation_user)
         ####Comment out whilst testing
-        notifications_client.send_email_notification(
-            email_address=confirmation_user,
-            template_id=settings.EMAIL_COMPLETED_UUID,
-            personalisation={
-                'who_got_access': 'You have',
-                'name': attention_for,
-                'services': services
-            }
-        )
+        # notifications_client.send_email_notification(
+        #     email_address=confirmation_user,
+        #     template_id=settings.EMAIL_COMPLETED_UUID,
+        #     personalisation={
+        #         'who_got_access': 'You have',
+        #         'name': attention_for,
+        #         'services': services
+        #     }
+        # )
 
         if confirmation_requestor != confirmation_user:
             attention_for = get_username(confirmation_requestor)

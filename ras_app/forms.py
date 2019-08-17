@@ -83,21 +83,43 @@ class StaffLookupForm(GOVUKForm):
         widget=widgets.TextInput())
 
 
-class AdditionalInfoForm(GOVUKForm):
-    #services_list = get_service_list
-    #import pdb; pdb.set_trace()
-    ga_info = forms.CharField(label='Please specify which Google Analytics access you require.', max_length=60, widget=widgets.TextInput())
-    github_info = forms.CharField(label='Your GitHub Username', max_length=60, widget=widgets.TextInput())
-    ukgovpaas_info = forms.CharField(label='Which GovPaaS Space', max_length=60, widget=widgets.TextInput())
+def get_service_list(user_email):
+    # Check to see if a service has already been approved if so dont display
+    if RequestItem.objects.values_list(
+        'services_id', flat=True).filter(
+        request_id__in=Request.objects.values_list(
+            'id', flat=True).filter(
+            user_email=user_email), completed=True):
 
+        approved_items = RequestItem.objects.values_list('services_id', flat=True).filter(
+            request_id__in=Request.objects.values_list('id', flat=True).filter(
+                user_email=user_email), completed=True)
+        services_list = Services.objects.exclude(id__in=approved_items).values_list(
+            'services_id',
+            'service_name')
+    else:
+        # Get all services.
+        services_list = Services.objects.values_list('id', 'service_name')
+    return services_list
+
+
+class ServicesRequiredForm(GOVUKForm):
     def __init__(self, *args, **kwargs):
-        #import pdb; pdb.set_trace()
+        user_email = kwargs.pop('user_email')
+        super().__init__(*args, **kwargs)
+        self.fields['services'].choices = get_service_list(user_email)
+
+    services = forms.MultipleChoiceField(
+        label='Please select the services you needs access to be give to',
+        choices=[],
+        widget=widgets.CheckboxSelectMultiple)
+
+
+class AdditionalInfoForm(GOVUKForm):
+    def __init__(self, *args, **kwargs):
         services = kwargs.pop('services')
         super(AdditionalInfoForm, self).__init__(*args, **kwargs)
-
         service_objects = json.loads(services)
-        # for service, value in services.items():
-        #     print (value)
 
         for service, value in service_objects.items():
             if value == 'False' and service == 'ga':
@@ -112,13 +134,18 @@ class AdditionalInfoForm(GOVUKForm):
                 self.fields['ukgovpaas_info'].widget = forms.HiddenInput()
                 self.fields['ukgovpaas_info'].required = False
 
-        # if service == 'google analytics':
-        #     #self.fields['user_email'].widget = forms.HiddenInput()
-        #     self.fields['additional_info'].widget = forms.HiddenInput()
-        #     self.fields['surname'].widget = forms.HiddenInput()
-        #     #self.fields['user_email'].required = False
-        #     self.fields['firstname'].required = False
-        #     self.fields['surname'].required = False
+    ga_info = forms.CharField(
+        label='Please specify the Google Analytic services that is required:',
+        max_length=60,
+        widget=widgets.TextInput())
+    github_info = forms.CharField(
+        label='Enter in GitHub Username:',
+        max_length=60,
+        widget=widgets.TextInput())
+    ukgovpaas_info = forms.CharField(
+        label='Which GovPaaS Space will be required:',
+        max_length=60,
+        widget=widgets.TextInput())
 
 
 def get_action_list(email):
@@ -281,19 +308,7 @@ def get_approver_list(email_exclude, on_behalf_status):
     return Approver.objects.values_list('id', 'email').exclude(email = email_exclude)
 
 
-def get_service_list(user_email):
-    #import pdb; pdb.set_trace()
-    if Request.objects.values_list('id', flat=True).filter(user_email=user_email):
-    #approved_items = Request.objects.values_list('id', flat=True).filter(user_email=user_email, completed=True)
-        approved_requests = Request.objects.values_list('id', flat=True).filter(user_email=user_email)
-        approved_items = RequestItem.objects.values_list('services_id', flat=True).filter(request_id__in=approved_requests, completed=True)
-    # Get services not already assigned.
-        services_list = Services.objects.exclude(id__in=approved_items).values_list('services_id', 'service_name')
-    else:
-        # Get all services.
-        services_list = Services.objects.values_list('id', 'service_name')
 
-    return services_list
 
 
 class RejectedReasonForm(GOVUKForm):
@@ -331,16 +346,8 @@ def action_rejected_form_factory(rejected_ids, post=None):
    return form_list
 
 
-class UserDetailsForm(GOVUKForm):
-    #services_list = get_service_list
-    #import pdb; pdb.set_trace()
-    services = forms.MultipleChoiceField(label='Services you needs access to', choices=[], widget=widgets.CheckboxSelectMultiple)
 
-    def __init__(self, *args, **kwargs):
-        user_email = kwargs.pop('user_email')
 
-        super().__init__(*args, **kwargs)
-        self.fields['services'].choices = get_service_list(user_email)
 
 class RejectForm(GOVUKForm):
     rejected_reason = forms.CharField(label='Short description on why you have rejected access', widget=widgets.Textarea())

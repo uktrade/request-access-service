@@ -31,7 +31,7 @@ class Request(models.Model):
     signed_off_on = models.DateTimeField(null=True)
     reason = models.CharField(default=False, max_length=400)
     user_email = models.EmailField()
-    token = models.CharField(default=False, max_length=20)
+    #token = models.CharField(default=False, max_length=20)
     completed = models.BooleanField(default=False)
     rejected = models.BooleanField(default=False)
     rejected_reason = models.CharField(blank=True, max_length=400)
