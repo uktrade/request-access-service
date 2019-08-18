@@ -2,10 +2,11 @@ from django.conf.urls import url
 
 from . import views
 from .views import (
-    services_required, home_page, add_new_user, add_self, access_approver, staff_lookup, reject_access,
-    action_requests, reason, additional_info, approve, rejected_reason, request_status)
+    services_required, home_page, add_new_user, add_self, access_approver, staff_lookup,
+    action_requests, reason, additional_info, access_requests, rejected_reason,
+    request_status)
 
-from django.urls import path, include, re_path
+from django.urls import path, include
 from django.contrib.auth.decorators import login_required
 from django.views.generic import RedirectView
 
@@ -20,13 +21,8 @@ urlpatterns = [
     path('services-required/', services_required.as_view(), name='services_required'),
     path('additional-info/', additional_info.as_view(), name='additional_info'),
     path('reason/', reason.as_view(), name='reason'),
-
+    path('access-requests/', login_required(access_requests.as_view()), name='access_requests'),
+    path('rejected-reason/', login_required(rejected_reason.as_view()), name='rejected_reason'),
     path('action-requests/', login_required(action_requests.as_view()), name='action_requests'),
-    url(r'^activate/(?P<token>[0-9A-Za-z]{1,20})/$',
-        views.activate, name='activate'),
-    re_path(r'^reject/(?P<token>[0-9A-Za-z]{1,20})/$',
-        reject_access.as_view(), name='reject_access'),
-    path('access-requests/', login_required(approve.as_view()), name='approve'),
-    path('rejected-reason/', rejected_reason.as_view(), name='rejected_reason'),
     path('request-status/', login_required(request_status.as_view()), name='request_status'),
 ]

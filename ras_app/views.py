@@ -2,14 +2,14 @@ import json
 import requests
 
 from .forms import (
-    StartForm, ActionRequestsForm, AddSelfForm, RejectForm, ServicesRequiredForm,
-    AccessApproverForm, StaffLookupForm, AddNewUserForm, action_request_form_factory,
-    AdditionalInfoForm, ReasonForm, ApproveForm, action_rejected_form_factory)
+    StartForm, ActionRequestsForm, AddSelfForm, ServicesRequiredForm,
+    AccessApproverForm, StaffLookupForm, AddNewUserForm,
+    AdditionalInfoForm, ReasonForm, AccessRequestsForm)
 from .models import (
     Approver, Services, User, Request, RequestItem, RequestorDetails, Teams,
     AccountsCreator)
 from .email import (
-    send_approvals_email, send_requester_email, send_accounts_creator_email,
+    send_approvals_email, send_requestor_email, send_accounts_creator_email,
     send_completed_email, send_end_user_email)
 
 from urllib.parse import urlencode
@@ -245,11 +245,13 @@ class staff_lookup(FormView):
             return redirect('/staff-lookup/')
 
 
-def send_mails(approver, request_id):
+def send_mails(request_id):
 
-    send_approvals_email(str(request_id), str(approver))
-    send_end_user_email(str(request_id), str(approver))
-    # send_requester_email(str(request_id), str(user_email), '')
+    send_approvals_email(str(request_id))
+    send_end_user_email(str(request_id))
+    if Request.objects.get(id=request_id).requestor != Request.objects.get(
+            id=request_id).user_email:
+        send_requestor_email(str(request_id))
     return
 
 
@@ -370,79 +372,84 @@ class reason(FormView):
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
-        self.approver = self.request.GET['approver']
         self.request_id = self.request.GET['request_id']
         return kwargs
 
     def form_valid(self, form):
         Request.objects.filter(id=self.request_id).update(reason=form.cleaned_data['reason'])
-        send_mails(self.approver, self.request_id)
-        t = render_to_string("submitted.html")
-        return HttpResponse(t)
+        send_mails(self.request_id)
+        template = render_to_string("submitted.html")
+        return HttpResponse(template)
 
 
-def activate(request, uidb64=None, token=None):
-    #import pdb; pdb.set_trace()
-    #try:
-        #uid = force_text(urlsafe_base64_decode(uidb64))
-        #token_in_table=Request.objects.get(id=uid).token
+class access_requests(FormView):
+    template_name = 'access-requests.html'
+    form_class = AccessRequestsForm
 
-    if Request.objects.filter(token=token).exists() and not Request.objects.get(token=token).signed_off:
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        self.email = self.request.user.email
+        kwargs.update({'email': self.email})
+        return kwargs
 
-        Request.objects.filter(token=token).update(signed_off=True, signed_off_on=timezone.now())
-        #import pdb; pdb.set_trace()
-        send_accounts_creator_email(Request.objects.values_list('id', flat=True).filter(token=token))
-        context = {'message': 'Thank you for your email confirmation.'}
-        t = render_to_string('notify.html', context)
-        return HttpResponse(t)
-    elif Request.objects.filter(token=token).exists() and Request.objects.get(token=token).signed_off:
-        context = {'message': 'Confirmation has already been done!'}
-        t = render_to_string('notify.html', context)
-        return HttpResponse(t)
-
-    else:
-        context = {'message': 'Authourization link is invalid!'}
-        t = render_to_string('notify.html', context)
-        return HttpResponse(t)
-
-
-# def send_mail_rejected(requestor_email, rejected_reason):
-#     print (requestor_email, rejected_reason)
-#     send_requester_email(request_id, requestor, rejected_reason)
-
-class reject_access(FormView):
-    template_name = 'basic-post.html'
-    form_class = RejectForm
-
-    def dispatch(self, request, *args, **kwargs):
-        #import pdb; pdb.set_trace()
-        self.token =  kwargs['token']
-        if Request.objects.filter(token=self.token).exists() and not Request.objects.get(token=self.token).signed_off:
-            print ("Do nothing")
-
-            #Request.objects.filter(token=token).update(signed_off=True, signed_off_on=timezone.now())
-            #return HttpResponse('Thank you for your email confirmation.')
-        elif Request.objects.filter(token=self.token).exists() and Request.objects.get(token=self.token).signed_off:
-            context = {'message': 'Confirmation has already been done!'}
-            t = render_to_string('notify.html', context)
-            return HttpResponse(t)
-        else:
-            context = {'message': 'Authourization link is invalid!'}
-            t = render_to_string('notify.html', context)
-            return HttpResponse(t)
-        return super().dispatch(request, *args, **kwargs)
+    def dispatch(self, *args, **kwargs):
+        self.email = self.request.user.email
+        items_to_approve = Request.objects.filter(approver_id=Approver.objects.get(
+            email=self.email).id).exclude(signed_off=True).exclude(rejected=True)
+        if not items_to_approve:
+            messages.info(self.request, 'You have no items to approve')
+        return super().dispatch(*args, kwargs)
 
     def form_valid(self, form):
+        requests_to_approve = form.cleaned_data['approve']
+        requests_rejected = form.cleaned_data['reject']
 
-        Request.objects.filter(token=self.token).update(rejected=True, rejected_reason=form.cleaned_data['rejected_reason'])
-        #t = render_to_string("submitted.html")
-        #user_email = Request.objects.get(token=self.token).user_email
-        send_requester_email(Request.objects.get(token=self.token).id ,Request.objects.get(token=self.token).requestor, form.cleaned_data['rejected_reason'])
+        # Do approvals updates in DB + stop selecting approve and reject check box
+        if requests_to_approve in [requests_rejected]:
+            messages.info(self.request, 'You can not approve and disapprove same item')
+            return redirect('access-requests')
 
-        context = {'message': 'Thank you, request rejected.  Requester has been notified'}
-        t = render_to_string('notify.html', context)#, message)
-        return HttpResponse(t)# 'Thank you, request rejected.  Requester has been notified')
+        Request.objects.filter(id__in=requests_to_approve).update(
+            signed_off=True, signed_off_on=timezone.now())
 
+        for request_id in requests_to_approve:
+            send_accounts_creator_email(request_id)
+
+        if requests_rejected:
+            self.rejected_ids = requests_rejected
+            self.success_url = reverse_lazy('rejected_reason')
+            return super().form_valid(form)
+
+        template = render_to_string("submitted.html")
+        return HttpResponse(template)
+
+    def get_success_url(self):
+        url = super().get_success_url()
+        rejected_ids = ','.join(self.rejected_ids)
+        context = {'rejected_ids': rejected_ids}
+        return url + '?' + urlencode(context)
+
+
+class rejected_reason(View):
+    template_name = 'rejected-reason.html'
+    template_name_success = 'submitted.html'
+
+    def get(self, request, *args, **kwargs):
+        form_list = action_rejected_form_factory(request.GET['rejected_ids'])
+        return render(request, self.template_name, {'form_list': form_list})
+
+    def post(self, request, *args, **kwargs):
+        form_list = action_rejected_form_factory(request.GET['rejected_ids'], request.POST)
+        if not all(form.is_valid() for form in form_list):
+            return render(request, self.template_name, {'form_list': form_list})
+        else:
+            for idx, val in enumerate(form_list):
+                requestid = form_list[idx].fields['rejected_reason'].label_suffix
+                rejected_reason = form_list[idx].cleaned_data['rejected_reason']
+                Request.objects.filter(id=requestid).update(
+                    rejected=True, rejected_reason=rejected_reason)
+                send_requestor_email(requestid)
+            return render(request, self.template_name_success)
 
 
 class action_requests(FormView):
@@ -450,223 +457,77 @@ class action_requests(FormView):
     form_class = ActionRequestsForm
 
     def get_form_kwargs(self):
-        #import pdb; pdb.set_trace()
         kwargs = super().get_form_kwargs()
         self.email = self.request.user.email
         kwargs.update({'email': self.email})
-        #kwargs['uid'] = self.uuid
-
         return kwargs
 
-    # def dispatch(self, *args, **kwargs):
-    #     import pdb; pdb.set_trace()
-    #     self.email = self.request.user.email
-    #     kwargs.update({'email': self.email})
-    #     #self.uuid = self.kwargs['userid']
-    #     return super().dispatch(*args, kwargs)
-
     def form_valid(self, form):
-        # print ('Do something')
-        # import pdb; pdb.set_trace()
-
         services_completed = form.cleaned_data['action']
-        #import pdb; pdb.set_trace()
-        for z in services_completed:
-            RequestItem.objects.filter(id=z).update(completed=True)
-        completed_tasks = RequestItem.objects.values('request_id','services__service_name').filter(id__in=services_completed).order_by('request_id')
+        for service_id in services_completed:
+            RequestItem.objects.filter(id=service_id).update(completed=True)
+        completed_tasks = RequestItem.objects.values(
+            'request_id', 'services__service_name').filter(
+                id__in=services_completed).order_by('request_id')
         send_completed_email(completed_tasks)
 
-        t = render_to_string("submitted.html")
-        return HttpResponse(t)
-####
-### Function no longer required as end-date has been removed from user.
-class deactivate(View):
-    template_name = 'deactivate.html'
-    template_name_success = 'submitted.html'
+        template = render_to_string("submitted.html")
+        return HttpResponse(template)
 
-    def get(self, request, *args, **kwargs):
-        #import pdb; pdb.set_trace()
-        form_list = action_request_form_factory(request.user.email)
-        #form_list = action_request_form_factory('jayesh.patel@digital.trade.gov.uk')
-
-        return render(request, self.template_name, {'form_list': form_list})
-
-    def post(self, request, *args, **kwargs):
-
-        form_list = action_request_form_factory(request.user.email, request.POST)
-        #import pdb; pdb.set_trace()
-        #form_list[0].is_valid()
-        #form_list = action_request_form_factory(request.user.email)
-
-        if not all(form.is_valid() for form in form_list):
-            return render(request, self.template_name, {'form_list': form_list})
-        else:
-            #import pdb; pdb.set_trace()
-            for idx, val in enumerate(form_list):
-                requestid = form_list[idx].cleaned_data['deactivate']
-                if requestid:
-                    RequestItem.objects.filter(id__in=requestid).update(completed=False)
-
-           # some processing here to change update database values?
-            return render(request, self.template_name_success)
-
-
-class approve(FormView):
-    template_name = 'approve.html'
-    form_class = ApproveForm
-
-    def get_form_kwargs(self):
-        #import pdb; pdb.set_trace()
-        kwargs = super().get_form_kwargs()
-        self.email = self.request.user.email
-        kwargs.update({'email': self.email})
-
-        return kwargs
-
-
-    def dispatch(self, *args, **kwargs):
-        #import pdb; pdb.set_trace()
-        self.email = self.request.user.email
-        items_to_approve = Request.objects.filter(approver_id=Approver.objects.get(email=self.email).id).exclude(signed_off=True).exclude(rejected=True)
-        if not items_to_approve:
-            messages.info(self.request, 'You have no items to approve')
-
-        return super().dispatch(*args, kwargs)
-
-    def form_valid(self, form):
-        # print ('Do something')
-        #import pdb; pdb.set_trace()
-
-        requests_to_approve=form.cleaned_data['approve']
-        requests_rejected=form.cleaned_data['reject']
-        # Do approvals updates in DB + stop selecting approve and reject check box
-
-        if requests_to_approve in [requests_rejected]:
-            #self.success_url = reverse_lazy('approve')
-            messages.info(self.request, 'You can not approve and disapprove same item')
-            return redirect('approve')#super().form_valid(form)
-            #return HttpResponseRedirect('/approve/')
-
-        Request.objects.filter(id__in=requests_to_approve).update(signed_off=True, signed_off_on=timezone.now())
-
-        for x in requests_to_approve:
-            #import pdb; pdb.set_trace()
-            send_accounts_creator_email(x)
-
-        if requests_rejected:
-            self.rejected_ids = requests_rejected
-            self.success_url = reverse_lazy('rejected_reason')
-            return super().form_valid(form)
-
-        t = render_to_string("submitted.html")
-        return HttpResponse(t)
-
-    def get_success_url(self):
-        url = super().get_success_url()
-        #import pdb; pdb.set_trace()
-        rej = ','.join(self.rejected_ids)
-        context = {'rejected_ids': rej}
-        return url + '?' + urlencode(context)
-
-class rejected_reason(View):
-    template_name = 'rejected-reason.html'
-    template_name_success = 'submitted.html'
-
-    def get(self, request, *args, **kwargs):
-        #import pdb; pdb.set_trace()
-        form_list = action_rejected_form_factory(request.GET['rejected_ids'])
-
-        return render(request, self.template_name, {'form_list': form_list})
-
-
-    def post(self, request, *args, **kwargs):
-        form_list = action_rejected_form_factory(request.GET['rejected_ids'], request.POST)
-
-        if not all(form.is_valid() for form in form_list):
-            return render(request, self.template_name, {'form_list': form_list})
-        else:
-            #import pdb; pdb.set_trace()
-            for idx, val in enumerate(form_list):
-                requestid = form_list[idx].fields['rejected_reason'].label_suffix
-                rejected_reason = form_list[idx].cleaned_data['rejected_reason']
-                Request.objects.filter(id=requestid).update(rejected=True, rejected_reason=rejected_reason)
-                send_requester_email(requestid , Request.objects.get(id=requestid).approver.email, rejected_reason)
-
-            return render(request, self.template_name_success)
 
 class request_status(generic.ListView):
-    #import pdb; pdb.set_trace()
-    #def get_queryset(self):
     template_name = 'request-status.html'
 
     def get(self, request, *args, **kwargs):
-        #import pdb; pdb.set_trace()
         self.request.user.email
         formatted_reqs_not_appr = []
-        #context_object_name = 'teams'
-        reqs_not_appr = Request.objects.values_list('id','approver__email','requestitem__services__service_name').filter(user_email=self.request.user.email, signed_off=False)
-        for req_id, approver, service in  reqs_not_appr:
+        reqs_not_appr = Request.objects.values_list(
+            'id',
+            'approver__email',
+            'requestitem__services__service_name').filter(
+                user_email=self.request.user.email,
+                signed_off=False)
+        for req_id, approver, service in reqs_not_appr:
             if service in ['google analytics', 'github', 'ukgov paas']:
-                #import pdb; pdb.set_trace()
-                formatted_reqs_not_appr.append('Request id: ' + str(req_id) +
-                    ', Approver: ' + approver +
-                    ', Service: ' + service + ' - ' +
+                request_str = 'Request id: ' + str(req_id) + \
+                    ', Approver: ' + approver + \
+                    ', Service: ' + service + ' - ' + \
                     RequestItem.objects.get(
-                        request_id=req_id,services__service_name=service).additional_info
-                    )
+                        request_id=req_id, services__service_name=service).additional_info
+                formatted_reqs_not_appr.append(request_str)
             else:
-                formatted_reqs_not_appr.append('Request id: ' + str(req_id) +
-                    ', Approver: ' + approver +
+                request_str = 'Request id: ' + str(req_id) + \
+                    ', Approver: ' + approver + \
                     ', Service: ' + service
-                    )
+                formatted_reqs_not_appr.append(request_str)
 
-        requests_not_activated = Request.objects.values_list('id').filter(user_email=self.request.user.email, signed_off=True)
+        requests_not_activated = Request.objects.values_list('id').filter(
+            user_email=self.request.user.email,
+            signed_off=True)
         service_not_activated = []
-
-        who_activates = []
         for request_id in requests_not_activated:
-            service_not_activated = (RequestItem.objects.values('request_id','services_id').filter(request_id__in=request_id))
-        #import pdb; pdb.set_trace()
+            service_not_activated = (RequestItem.objects.values(
+                'request_id', 'services_id').filter(request_id__in=request_id))
         service_not_activated_lst = []
         svc_admins = []
         for idx, item in enumerate(service_not_activated):
-            for x in AccountsCreator.objects.values_list('email',flat=True).filter(services__id=item['services_id']):
+            for x in AccountsCreator.objects.values_list('email', flat=True).filter(
+                    services__id=item['services_id']):
                 svc_admins.append(x)
-            #import pdb; pdb.set_trace()
-            if Services.objects.get(id=item['services_id']).service_name in ['google analytics', 'github', 'ukgov paas']:
-                #import pdb; pdb.set_trace()
+            if Services.objects.get(id=item['services_id']).service_name in [
+                    'google analytics',
+                    'github',
+                    'ukgov paas']:
                 service = Services.objects.get(
-                            id=item['services_id']).service_name + ' - ' + RequestItem.objects.get(
-                            request_id=item['request_id'],services_id=item['services_id']).additional_info
+                    id=item['services_id']).service_name + ' - ' + RequestItem.objects.get(
+                    request_id=item['request_id'], services_id=item['services_id']).additional_info
             else:
                 service = Services.objects.get(id=item['services_id']).service_name
 
-            service_not_activated_lst.append('Request id: ' + str(item['request_id']) +
-                ', Service Admins: ' + str(set(svc_admins)) +
+            service_str = 'Request id: ' + str(item['request_id']) + \
+                ', Service Admins: ' + str(set(svc_admins)) + \
                 ', Service: ' + service
-                )
-        #import pdb; pdb.set_trace()
-        #who_activates = (AccountsCreator.objects.values_list('email').filter(services__in=service_not_activated_lst))
-
-        #return kwargs
-        return render(request, self.template_name, {'formatted_reqs_not_appr': formatted_reqs_not_appr, 'service_not_activated_lst': service_not_activated_lst})
-
-    # context_object_name = 'teams'
-    # queryset = Teams.objects.values_list('id', 'team_name').order_by('team_name')
-    #
-    # template_name = 'request-status.html'
-
-
-
-# class request_status(FormView):
-#     template_name = 'basic-post.html'
-#     form_class = RequestStatusForm
-#
-#     def form_valid(self, form):
-#
-#         return super().form_valid(form)
-#
-#     def get_success_url(self):
-#         url = super().get_success_url()
-#         context = {'on_behalf': self.on_behalf}
-#         return url + '?' + urlencode(self.context)
+            service_not_activated_lst.append(service_str)
+        return render(request, self.template_name, {
+            'formatted_reqs_not_appr': formatted_reqs_not_appr,
+            'service_not_activated_lst': service_not_activated_lst})
