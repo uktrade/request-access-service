@@ -154,11 +154,14 @@ class ReasonForm(GOVUKForm):
 
 
 def get_approve_list(email):
-    # import pdb; pdb.set_trace()
     approve_list = []
-    request_list = Request.objects.values_list('id', 'user_email').filter(
-        approver_id=Approver.objects.get(email=email).id).exclude(signed_off=True).exclude(
-            rejected=True)
+    request_list = []
+
+    if Request.objects.filter(approver__email=email).exclude(
+            signed_off=True).exclude(rejected=True).exists():
+        request_list = Request.objects.values_list('id', 'user_email').filter(
+            approver__email=email).exclude(signed_off=True).exclude(rejected=True)
+
     for id, email in request_list:
         services_required = RequestItem.objects.values_list(
             'services__service_name', flat=True).filter(request_id=id)
