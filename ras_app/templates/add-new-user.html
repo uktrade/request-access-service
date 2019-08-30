@@ -1,0 +1,31 @@
+<!-- howdy/templates/index.html -->
+{% extends 'ras_app_template.html' %}
+
+{% block inner_content %}
+        <div class ="page-body">
+
+          {% if messages %}
+          <ul class="messages">
+            {% for message in messages %}
+              <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+
+          <p></p>
+          Use the search button to find the name of the person who needs access.<br>
+          <p></p>
+          <a class="button" href="/staff-lookup/?{{ request.GET.urlencode }}">
+          Search
+          </a>
+          <p></p>
+          <p>-----------------------------------------------------------------------------------------------------</p>
+          <p></p>
+
+        <form method="post">
+          {% csrf_token %}
+          {{ form }}
+          <input type="submit" class="button" value="Submit">
+        </form>
+      </div>
+{% endblock %}

@@ -1,188 +1,205 @@
-from django.core.management.base import BaseCommand, CommandError
+import requests
+
+from django.core.management.base import BaseCommand
 from django.conf import settings
 from ras_app.models import Approver, Services, User, Request, RequestItem, AccountsCreator, Teams
 from collections import defaultdict
 
 from notifications_python_client.notifications import NotificationsAPIClient
 
+
 class Command(BaseCommand):
     def handle(self, *args, **options):
-        print ('Running')
-        #send_approvals_email()
+        print('Running')
+        # send_approvals_email()
+
+
+# This is used to send e-mails to a test address if set in settings.
+def get_test_email_addreess(email):
+    # import pdb; pdb.set_trace()
+    if settings.EMAIL_TEST_ADDRESS:
+        emailaddr = settings.EMAIL_TEST_ADDRESS
+    elif settings.EMAIL_TEST_SMOKE == 'True':
+        emailaddr = settings.EMAIL_TEST_NOTIFY_ADDRESS
+    else:
+        emailaddr = email
+    return emailaddr
+
 
 def get_username(user_email):
-    firstname = User.objects.get(email=user_email).firstname
-    surname = User.objects.get(email=user_email).surname
-    person = firstname + ' ' + surname
+    response = requests.get(
+        'https://sso.trade.gov.uk/api/v1/user/introspect/',
+        params={'email': user_email},
+        headers={'Authorization': f'Bearer {settings.SSO_INTROS_TOKEN}'})
 
+    if response.status_code == requests.codes.ok:
+        user_data = response.json()
+        first_name = user_data['first_name']
+        last_name = user_data['last_name']
+    else:
+        print("User not in staff sso db.")
+    person = first_name + ' ' + last_name
     return person
 
 
 def get_approval_details(request_id):
-    #import pdb; pdb.set_trace()
-    rejected_url = ''
-    services_required = []
-    items_to_approve = RequestItem.objects.values_list('services__service_name', flat=True).filter(request_id=request_id)
+    items_to_approve = RequestItem.objects.values_list(
+        'services__service_name', flat=True).filter(request_id=request_id)
     items_to_approve_as_lst = []
     for x in items_to_approve:
         if x in ['google analytics', 'github', 'ukgov paas']:
-            #import pdb; pdb.set_trace()
-            items_to_approve_as_lst.append(x + ' - ' + RequestItem.objects.get(request_id=request_id,services__service_name=x).additional_info)
+            items_to_approve_as_lst.append(
+                x + ' - ' + RequestItem.objects.get(
+                    request_id=request_id, services__service_name=x).additional_info)
         else:
             items_to_approve_as_lst.append(x)
-
     request = Request.objects.get(id=request_id)
-    #requester = get_username(request.requestor)
-    requester = request.requestor
-    #user = get_username(request.user_email)
+    requestor = request.requestor
     user = request.user_email
-    #import pdb; pdb.set_trace()
+    approver = Approver.objects.get(id=(request.approver_id)).email
     team_name = User.objects.get(email=user).team.team_name
     if Teams.objects.get(team_name=team_name).sc:
         sc = 'Access to this team required SC clearance, please ensure clearance has been granted.'
     else:
         sc = ''
+    return approver, requestor, user, team_name, items_to_approve_as_lst, sc
 
-    return requester, user, team_name, items_to_approve_as_lst, sc
 
+def send_approvals_email(request_id):
 
-def send_approvals_email(request_id, approver):
-    print ('Sending mail')
-    print (approver)
-    #import pdb; pdb.set_trace()
-    requester, user, team_name, items_to_approve, sc = get_approval_details(request_id)
-    #items_to_approve_as_lst = ', '.join(items_to_approve)
+    print('Sending mail')
+    approver, requestor, user, team_name, items_to_approve, sc = get_approval_details(request_id)
+    print(approver)
     approval_url = 'https://' + settings.DOMAIN_NAME + '/access-requests/'
     attention_for = get_username(approver)
-    requester = get_username(requester)
+    requestor = get_username(requestor)
     user = get_username(user)
+    emailaddr = get_test_email_addreess(approver)
 
     notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
-    ####Comment out whilst testing
-    # notifications_client.send_email_notification(
-    #     email_address=approver,
-    #     template_id=settings.EMAIL_UUID,
-    #     personalisation={
-    #         'name': attention_for,
-    #         'sc': sc,
-    #         'requester': requester,
-    #         'user': user,
-    #         'team': team_name,
-    #         'services': items_to_approve,
-    #         'url': approval_url
-    #     }
-    # )
+    notifications_client.send_email_notification(
+        email_address=emailaddr,
+        template_id=settings.EMAIL_UUID,
+        personalisation={
+            'name': attention_for,
+            'sc': sc,
+            'requester': requestor,
+            'user': user,
+            'team': team_name,
+            'services': items_to_approve,
+            'url': approval_url
+        }
+    )
 
 
-def send_requester_email(request_id, approver, rejection_reason):
-    print ('Sending mail')
-    #print (request_id, requestor, rejection_reason)
-    #import pdb; pdb.set_trace()
-    if rejection_reason:
+def send_end_user_email(request_id):
+    print('Sending mail')
+    approver, requestor, user, team_name, items_to_approve, sc = get_approval_details(request_id)
+    ras_url = 'https://' + settings.DOMAIN_NAME + '/request-status/'
+    attention_for = get_username(user)
+    requestor = get_username(requestor)
+    approver = get_username(approver)
+    emailaddr = get_test_email_addreess(user)
+
+    notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
+    notifications_client.send_email_notification(
+        email_address=emailaddr,
+        template_id=settings.EMAIL_ENDUSER_UUID,
+        personalisation={
+            'name': attention_for,
+            'requester': requestor,
+            'approver': approver,
+            'request_id': request_id,
+            'ras_url': ras_url,
+            'services': items_to_approve
+        }
+    )
+
+
+def send_requestor_email(request_id):
+    print('Sending mail')
+    if Request.objects.get(id=request_id).rejected:
         status = 'rejected'
-        #rejection_reason = 'Your request was rejected because: ' + rejection_reason
+        rejection_reason = 'Your request was rejected because: ' + Request.objects.get(
+            id=request_id).rejected_reason
     else:
         status = 'submitted'
+        rejection_reason = ''
 
-    requester, user, team_name, items_to_approve, sc = get_approval_details(request_id)
-
-    attention_for = get_username(requester)
+    approver, requestor, user, team_name, items_to_approve, sc = get_approval_details(request_id)
+    attention_for = get_username(requestor)
     approver = get_username(approver)
     user = get_username(user)
+    emailaddr = get_test_email_addreess(requestor)
 
     notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
-    ####Comment out whilst testing
-    # notifications_client.send_email_notification(
-    #     email_address=requester,
-    #     template_id=settings.EMAIL_REQUESTOR_UUID,
-    #     personalisation={
-    #         'name': attention_for,
-    #         'approver': approver,
-    #         'request_id': request_id,
-    #         'user': user,
-    #         'status': status,
-    #         'services': items_to_approve,
-    #         'rejection_reason': rejection_reason
-    #     }
-    # )
+    notifications_client.send_email_notification(
+        email_address=emailaddr,
+        template_id=settings.EMAIL_REQUESTOR_UUID,
+        personalisation={
+            'name': attention_for,
+            'approver': approver,
+            'request_id': request_id,
+            'user': user,
+            'status': status,
+            'services': items_to_approve,
+            'rejection_reason': rejection_reason
+        }
+    )
 
-def send_end_user_email(request_id, approver):
-    print ('Sending mail')
-    #print (request_id, requestor, rejection_reason)
-    #import pdb; pdb.set_trace()
-
-    requester, user, team_name, items_to_approve, sc = get_approval_details(request_id)
-    ras_url = 'https://' + settings.DOMAIN_NAME + '/request-status/'
-
-    attention_for = get_username(user)
-    requester = get_username(requester)
-    approver = get_username(approver)
-    ####Comment out whilst testing
-    notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
-    # notifications_client.send_email_notification(
-    #     email_address=user,
-    #     template_id=settings.EMAIL_ENDUSER_UUID,
-    #     personalisation={
-    #         'name': attention_for,
-    #         'requester': requester,
-    #         'approver': approver,
-    #         'request_id': request_id,
-    #         'ras_url': ras_url,
-    #         'services': items_to_approve
-    #     }
-    # )
 
 def send_accounts_creator_email(request_id):
-    print ('Sending mail')
-    #import pdb; pdb.set_trace()
-    request_approve = RequestItem.objects.values_list('services_id').filter(request_id__in=request_id)
-    creators_id = AccountsCreator.objects.values_list('email', flat=True).filter(services__in=request_approve)
+    print('Sending mail')
+    request_approve = RequestItem.objects.values_list('services_id').filter(
+        request_id__in=request_id)
+    creators_id = AccountsCreator.objects.values_list('email', flat=True).filter(
+        services__in=request_approve)
     notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
     ras_url = 'https://' + settings.DOMAIN_NAME + '/action-requests/'
 
-    for x in set(creators_id):
-        print ('emailing: ')
-        print (x)
+    for creator in set(creators_id):
+        print('emailing: ')
+        print(creator)
+        attention_for = get_username(creator)
+        emailaddr = get_test_email_addreess(creator)
 
-        attention_for = get_username(x)
-        ####Comment out whilst testing
-        # notifications_client.send_email_notification(
-        #     email_address=x,
-        #     template_id=settings.EMAIL_ACTIVATE_UUID,
-        #     personalisation={
-        #         'name': attention_for,
-        #         'ras_url': ras_url
-        #     }
-        # )
+        notifications_client.send_email_notification(
+            email_address=emailaddr,
+            template_id=settings.EMAIL_ACTIVATE_UUID,
+            personalisation={
+                'name': attention_for,
+                'ras_url': ras_url
+            }
+        )
 
 
 def send_completed_email(completed_tasks):
-    print ('Sending mail')
+    print('Sending mail')
     notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
     out = defaultdict(list)
-    #import pdb; pdb.set_trace()
     for item in completed_tasks:
-        out[item['request_id']].append(item['services__service_name'] +
-                ', link to docs: ' +
-                Services.objects.get(service_name=item['services__service_name']).service_docs +
-                ', service url: ' +
-                Services.objects.get(service_name=item['services__service_name']).service_url
-                )
+        service_str = item['services__service_name'] + \
+            ', link to docs: ' + \
+            Services.objects.get(service_name=item['services__service_name']).service_docs + \
+            ', service url: ' + \
+            Services.objects.get(service_name=item['services__service_name']).service_url
+        out[item['request_id']].append(service_str)
 
     for x in out:
-
         confirmation_user = Request.objects.get(id=x).user_email
         confirmation_requestor = Request.objects.get(id=x).requestor
 
         if out[x][0].partition(',')[0] in ['google analytics', 'github', 'ukgov paas']:
-            services = '[' + out[x][0] + ' - ' + RequestItem.objects.get(request_id=x, services__service_name=out[x][0]).additional_info + ']'
+            services = '[' + out[x][0] + ' - ' + RequestItem.objects.get(
+                request_id=x, services__service_name=out[x][0]).additional_info + ']'
         else:
             services = out[x]
 
         attention_for = get_username(confirmation_user)
-        ####Comment out whilst testing
+        emailaddr = get_test_email_addreess(confirmation_user)
+
         notifications_client.send_email_notification(
-            email_address=confirmation_user,
+            email_address=emailaddr,
             template_id=settings.EMAIL_COMPLETED_UUID,
             personalisation={
                 'who_got_access': 'You have',
@@ -193,33 +210,31 @@ def send_completed_email(completed_tasks):
 
         if confirmation_requestor != confirmation_user:
             attention_for = get_username(confirmation_requestor)
+            emailaddr = get_test_email_addreess(confirmation_requestor)
 
             notifications_client.send_email_notification(
-            email_address=confirmation_requestor,
-            template_id=settings.EMAIL_COMPLETED_UUID,
-            personalisation={
-                'who_got_access': attention_for + ' has',
-                'name': attention_for,
-                'services': services
-            }
-        )
+                email_address=emailaddr,
+                template_id=settings.EMAIL_COMPLETED_UUID,
+                personalisation={
+                    'who_got_access': attention_for + ' has',
+                    'name': attention_for,
+                    'services': services})
 
 
-def send_accounts_creator_close_email(creator, offboard, services): #end_date):
-    print ('Sending mail to', creator)
-    #import pdb; pdb.set_trace()
+def send_accounts_creator_close_email(creator, offboard, services):
+    print('Sending mail to', creator)
+
     notifications_client = NotificationsAPIClient(settings.GOV_NOTIFY_API_KEY)
-
     attention_for = get_username(creator)
     offboard = get_username(offboard)
+    emailaddr = get_test_email_addreess(creator)
 
     notifications_client.send_email_notification(
-        email_address=creator,
+        email_address=emailaddr,
         template_id=settings.EMAIL_OFFBOARD_UUID,
         personalisation={
             'creator': attention_for,
             'offboard': offboard,
             'services': services
-            #'end_date': end_date
         }
     )

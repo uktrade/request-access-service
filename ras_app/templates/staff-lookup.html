@@ -1,0 +1,40 @@
+<!-- howdy/templates/index.html -->
+{% extends 'ras_app_template.html' %}
+
+{% block inner_content %}
+        <div class ="page-body">
+
+          {% if messages %}
+          <ul class="messages">
+            {% for message in messages %}
+              <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        <p></p>
+        <body>
+          Please enter in either part or full name of the person you wish to search for, then press submit.
+        </body>
+        <p></p>
+
+        <form method="post">
+          {% csrf_token %}
+          {{ form }}
+          <input type="submit" class="button" value="Submit">
+        </form>
+      </div>
+      <p></p>
+
+      {% if staff_list %}
+      <p>--------------------------------------------------------------------------------------------------------------------------</p>
+      <p></p>
+      <p>Please select the name of the person who should approve your access.</p>
+      <ul style="list-style-type:none">
+        {% for staff in staff_list %}
+            <!-- <li><a href="/access-reason/?{{ request.GET.urlencode }}&chosen_staff={{ result }}">{{ result }}</a></li> -->
+            <li><a href="{{ referer_path }}?{{ request.GET.urlencode }}&chosen_staff={{ staff }}">{{ staff }}</a></li>
+        {% endfor %}
+      </ul>
+     {% endif %}
+
+{% endblock %}

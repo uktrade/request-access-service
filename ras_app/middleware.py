@@ -2,10 +2,10 @@ import logging
 
 from django.conf import settings
 from django.http import HttpResponse
-from django.urls import resolve
 from django.template.loader import render_to_string
 
 logger = logging.getLogger(__name__)
+
 
 def AdminIpRestrictionMiddleware(get_response):
 

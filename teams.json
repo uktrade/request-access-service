@@ -2,10 +2,18 @@
   "teams":
       [
         {
+          "datahub": {"sc": "False"},
+          "datascience": {"sc": "False"},
+          "export opportunties": {"sc": "False"},
           "tools": {"sc": "False"},
           "lite": {"sc": "True"},
-          "datahub": {"sc": "False"},
-          "trade remedies": {"sc": "False"}
+          "live services": {"sc": "False"},
+          "market access": {"sc": "False"},
+          "mi": {"sc": "False"},
+          "trade helpdesk": {"sc": "False"},
+          "trade remedies": {"sc": "False"},
+          "trade tariffs": {"sc": "False"},
+          "webops": {"sc": "True"}
         }
       ]
 }
