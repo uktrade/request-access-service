@@ -46,12 +46,9 @@ INSTALLED_APPS = [
     'govuk_template_base',
     'govuk_forms',
     'ras_app_template',
-    #'bootstrap4',
-    #'bootstrap_datepicker_plus',
     'ras_app',
     'authbroker_client',
     'user',
-    #'dit_user_management',
 ]
 
 MIDDLEWARE = [
@@ -86,10 +83,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# BOOTSTRAP4 = {
-#     'include_jquery': True,
-# }
-
 # Database
 # https://docs.djangoproject.com/en/2.1/ref/settings/#databases
 
@@ -118,8 +111,6 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
-
-#AUTH_USER_MODEL = 'dit_user_management.User'
 
 # Internationalization
 # https://docs.djangoproject.com/en/2.1/topics/i18n/
@@ -155,6 +146,9 @@ EMAIL_ACTIVATE_UUID = os.getenv('EMAIL_ACTIVATE_UUID')
 EMAIL_COMPLETED_UUID = os.getenv('EMAIL_COMPLETED_UUID')
 EMAIL_OFFBOARD_UUID = os.getenv('EMAIL_OFFBOARD_UUID')
 EMAIL_ENDUSER_UUID = os.getenv('EMAIL_ENDUSER_UUID')
+EMAIL_TEST_SMOKE = os.getenv('EMAIL_TEST_SMOKE', False)
+EMAIL_TEST_NOTIFY_ADDRESS = os.getenv('EMAIL_TEST_NOTIFY_ADDRESS', '')
+EMAIL_TEST_ADDRESS = os.getenv('EMAIL_TEST_ADDRESS', '')
 LOGIN_REDIRECT_URL = "/home/"
 LOGIN_URL = "/auth/login/"
 AUTHBROKER_URL = os.getenv("AUTHBROKER_URL")

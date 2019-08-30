@@ -1,4 +1,3 @@
-import datetime as dt
 import json
 
 from .models import Approver, Services, User, Request, AccountsCreator, RequestItem, Teams
@@ -95,7 +94,7 @@ def get_service_list(user_email):
             request_id__in=Request.objects.values_list('id', flat=True).filter(
                 user_email=user_email), completed=True)
         services_list = Services.objects.exclude(id__in=approved_items).values_list(
-            'services_id',
+            'id',
             'service_name')
     else:
         # Get all services.
@@ -155,6 +154,7 @@ class ReasonForm(GOVUKForm):
 
 
 def get_approve_list(email):
+    # import pdb; pdb.set_trace()
     approve_list = []
     request_list = Request.objects.values_list('id', 'user_email').filter(
         approver_id=Approver.objects.get(email=email).id).exclude(signed_off=True).exclude(
@@ -163,20 +163,20 @@ def get_approve_list(email):
         services_required = RequestItem.objects.values_list(
             'services__service_name', flat=True).filter(request_id=id)
         services_required_as_str = ''
-        for x in services_required:
-            if x in ['google analytics', 'github']:
-                services_required_as_str += '[' + x + ' - ' + \
+        for service in services_required:
+            if service in ['google analytics', 'github']:
+                services_required_as_str += '[' + service + ' - ' + \
                     RequestItem.objects.get(
-                        request_id=id, services__service_name=x).additional_info + '], '
+                        request_id=id, services__service_name=service).additional_info + '], '
             else:
-                services_required_as_str += x + ', '
+                services_required_as_str += service + ', '
         user_team = User.objects.values_list('team__team_name', flat=True).filter(email=email)
         services_per_user = 'User: [' + email + \
             '] in team: [' + user_team[0] + \
             '] has requested access to services: [' + services_required_as_str + ']'
 
         approve_list.append([id, services_per_user])
-        return approve_list
+    return approve_list
 
 
 class AccessRequestsForm(GOVUKForm):
@@ -197,6 +197,14 @@ class AccessRequestsForm(GOVUKForm):
         label='Check which to reject',
         choices=[],
         widget=widgets.CheckboxSelectMultiple)
+
+
+def action_rejected_form_factory(rejected_ids, post=None):
+    form_list = []
+    reject = rejected_ids.split(',')
+    for id in reject:
+        form_list.append(RejectedReasonForm(post, id=id, prefix='id_{}'.format(id)))
+    return form_list
 
 
 class RejectedReasonForm(GOVUKForm):

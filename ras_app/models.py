@@ -3,6 +3,8 @@ import uuid
 
 
 class Approver(models.Model):
+    # May not need this table could be replaced by getting name from staff sso,
+    # but need to sort out the id foriegn key in request table.
     first_name = models.CharField(max_length=60)
     last_name = models.CharField(max_length=60)
     email = models.EmailField()

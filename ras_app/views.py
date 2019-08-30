@@ -4,12 +4,12 @@ import requests
 from .forms import (
     StartForm, ActionRequestsForm, AddSelfForm, ServicesRequiredForm,
     AccessApproverForm, StaffLookupForm, AddNewUserForm,
-    AdditionalInfoForm, ReasonForm, AccessRequestsForm)
+    AdditionalInfoForm, ReasonForm, AccessRequestsForm, action_rejected_form_factory)
 from .models import (
     Approver, Services, User, Request, RequestItem, RequestorDetails, Teams,
     AccountsCreator)
 from .email import (
-    send_approvals_email, send_requestor_email, send_accounts_creator_email,
+    get_username, send_approvals_email, send_requestor_email, send_accounts_creator_email,
     send_completed_email, send_end_user_email)
 
 from urllib.parse import urlencode
@@ -24,15 +24,6 @@ from django.contrib import messages
 from django.utils import timezone
 from django.shortcuts import render, redirect
 from django.urls import reverse_lazy
-
-
-def admin_override(request):
-    # This view is to redirect the admin page to SSO for authentication.
-    if not reverse('home_page') in request.META.get('HTTP_REFERER', ''):
-        if not reverse('admin_override') in request.META.get('HTTP_REFERER', ''):
-            return redirect('home_page')
-
-    return redirect('/admin/')
 
 
 def get_email_address(staff_name):
@@ -74,6 +65,15 @@ class home_page(FormView):
     def get_success_url(self):
         url = super().get_success_url()
         return url + '?' + urlencode(self.context)
+
+
+def admin_override(request):
+    # This view is to redirect the admin page to SSO for authentication.
+    if not reverse('home_page') in request.META.get('HTTP_REFERER', ''):
+        if not reverse('admin_override') in request.META.get('HTTP_REFERER', ''):
+            return redirect('home_page')
+
+    return redirect('/admin/')
 
 
 class add_self(FormView):
@@ -187,6 +187,15 @@ class access_approver(FormView):
         approver = form.cleaned_data['approver']
         approver_email = get_email_address(approver)
 
+        # Check if approver searched is in local table if not add.
+        if not Approver.objects.filter(email=approver_email).exists():
+            person = get_username(approver_email)
+            Approver.objects.create(
+                email=approver_email,
+                first_name=person.split(None, 1)[0],
+                last_name=person.split(None, 1)[1]
+            )
+
         self.context = {
             'email': self.request.GET['email'],
             'user_email': self.request.GET['user_email'],
@@ -226,11 +235,11 @@ class staff_lookup(FormView):
             for staff in user_data['results']:
                 # This line exclude the person raising the request from being the approveer.
                 # 2 lines commented whilst testing.
-                # if staff['email'] != self.request.user.email:
-                #     staff_list.append(staff['first_name'] + ' ' + staff['last_name'])
+                if staff['email'] != self.request.user.email:
+                    staff_list.append(staff['first_name'] + ' ' + staff['last_name'])
 
                 # Comment this line when done with testing.
-                staff_list.append(staff['first_name'] + ' ' + staff['last_name'])
+                # staff_list.append(staff['first_name'] + ' ' + staff['last_name'])
 
             context = self.get_context_data()
             context['staff_list'] = staff_list
@@ -433,6 +442,12 @@ class access_requests(FormView):
 class rejected_reason(View):
     template_name = 'rejected-reason.html'
     template_name_success = 'submitted.html'
+
+    def dispatch(self, request, *args, **kwargs):
+        if not reverse('access_requests') in self.request.META.get('HTTP_REFERER', ''):
+            if not reverse('rejected_reason') in self.request.META.get('HTTP_REFERER', ''):
+                return redirect('access_requests')
+        return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
         form_list = action_rejected_form_factory(request.GET['rejected_ids'])
