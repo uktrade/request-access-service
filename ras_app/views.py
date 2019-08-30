@@ -403,9 +403,9 @@ class access_requests(FormView):
 
     def dispatch(self, *args, **kwargs):
         self.email = self.request.user.email
-        items_to_approve = Request.objects.filter(approver_id=Approver.objects.get(
-            email=self.email).id).exclude(signed_off=True).exclude(rejected=True)
-        if not items_to_approve:
+
+        if not Request.objects.filter(approver__email=self.email).exclude(
+                signed_off=True).exclude(rejected=True).exists():
             messages.info(self.request, 'You have no items to approve')
         return super().dispatch(*args, kwargs)
 
