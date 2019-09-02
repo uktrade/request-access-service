@@ -160,3 +160,5 @@ ALLOWED_ADMIN_IPS = env.list("ALLOWED_ADMIN_IPS")
 IP_PROTECT_PATH = "/home/"
 DOMAIN_NAME = os.getenv("DOMAIN_NAME")
 SSO_INTROS_TOKEN = os.getenv("SSO_INTROS_TOKEN")
+SERVICES = os.getenv("SERVICES")
+TEAMS = os.getenv("TEAMS")
