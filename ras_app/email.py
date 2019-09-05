@@ -211,12 +211,13 @@ def send_completed_email(completed_tasks):
         if confirmation_requestor != confirmation_user:
             attention_for = get_username(confirmation_requestor)
             emailaddr = get_test_email_addreess(confirmation_requestor)
+            user_given_access = get_username(confirmation_user)
 
             notifications_client.send_email_notification(
                 email_address=emailaddr,
                 template_id=settings.EMAIL_COMPLETED_UUID,
                 personalisation={
-                    'who_got_access': attention_for + ' has',
+                    'who_got_access': user_given_access + ' has',
                     'name': attention_for,
                     'services': services})
 
