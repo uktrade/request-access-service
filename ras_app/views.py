@@ -233,13 +233,13 @@ class staff_lookup(FormView):
             staff_list = []
             user_data = response.json()
             for staff in user_data['results']:
-                # This line exclude the person raising the request from being the approveer.
-                # 2 lines commented whilst testing.
-                if staff['email'] != self.request.user.email:
+                if not settings.EMAIL_TEST_ADDRESS:
+                    # This line exclude the person raising the request from being the approveer.
+                    # only runs whilst testing.
+                    if staff['email'] != self.request.user.email:
+                        staff_list.append(staff['first_name'] + ' ' + staff['last_name'])
+                else:
                     staff_list.append(staff['first_name'] + ' ' + staff['last_name'])
-
-                # Comment this line when done with testing.
-                # staff_list.append(staff['first_name'] + ' ' + staff['last_name'])
 
             context = self.get_context_data()
             context['staff_list'] = staff_list

@@ -2,14 +2,13 @@ import json
 
 from django.core.management.base import BaseCommand
 from ras_app.models import Services, Teams
+from django.conf import settings
 
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
         print('Running')
-
-        with open('services.json') as f:
-            data_services = json.load(f)
+        data_services = json.loads(settings.SERVICES)
 
         print('Populating Services:')
         for value in data_services['services']:
@@ -21,8 +20,7 @@ class Command(BaseCommand):
 
             print(value[0]['service_name'] + ' Added')
 
-        with open('teams.json') as f:
-            data_teams = json.load(f)
+        data_teams = json.loads(settings.TEAMS)
 
         print('Populating Teams:')
         for x in data_teams['teams']:
