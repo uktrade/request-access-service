@@ -15,7 +15,13 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from django.conf.urls import include, url
+from ras_app.views import admin_override
+##from django.contrib.auth.decorators import login_required
+
 
 urlpatterns = [
+    path('admin/login/', admin_override, name='admin_override'),
     path('admin/', admin.site.urls),
+    url(r'^', include('ras_app.urls')),
 ]
