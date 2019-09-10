@@ -32,9 +32,9 @@ pytz==2019.2              # via django
 raven==6.10.0
 rcssmin==1.0.6            # via django-compressor
 requests-oauthlib==1.2.0
-requests==2.19.1
+requests==2.22.0
 rjsmin==1.1.0             # via django-compressor
 scss==0.8.73
 six==1.12.0               # via django-appconf, libsass
 sqlparse==0.3.0           # via django
-urllib3==1.23             # via requests
+urllib3==1.24.2
