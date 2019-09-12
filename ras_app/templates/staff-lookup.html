@@ -13,14 +13,14 @@
           {% endif %}
         <p></p>
         <body>
-          Please enter in either part or full name of the person you wish to search for, then press submit.
+          Please enter in either part or full name of the person you are requsting access for, then press search.
         </body>
         <p></p>
 
         <form method="post">
           {% csrf_token %}
           {{ form }}
-          <input type="submit" class="button" value="Submit">
+          <input type="submit" class="button" value="Search">
         </form>
       </div>
       <p></p>
@@ -28,10 +28,9 @@
       {% if staff_list %}
       <p>--------------------------------------------------------------------------------------------------------------------------</p>
       <p></p>
-      <p>Please select the name of the person who should approve your access.</p>
+      <p>Click on the link of the name of the person who requires access.</p>
       <ul style="list-style-type:none">
         {% for staff in staff_list %}
-            <!-- <li><a href="/access-reason/?{{ request.GET.urlencode }}&chosen_staff={{ result }}">{{ result }}</a></li> -->
             <li><a href="{{ referer_path }}?{{ request.GET.urlencode }}&chosen_staff={{ staff }}">{{ staff }}</a></li>
         {% endfor %}
       </ul>

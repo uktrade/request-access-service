@@ -56,19 +56,21 @@ def get_approval_details(request_id):
     request = Request.objects.get(id=request_id)
     requestor = request.requestor
     user = request.user_email
+    reason = request.reason
     approver = Approver.objects.get(id=(request.approver_id)).email
     team_name = User.objects.get(email=user).team.team_name
     if Teams.objects.get(team_name=team_name).sc:
         sc = 'Access to this team required SC clearance, please ensure clearance has been granted.'
     else:
         sc = ''
-    return approver, requestor, user, team_name, items_to_approve_as_lst, sc
+    return approver, requestor, user, reason, team_name, items_to_approve_as_lst, sc
 
 
 def send_approvals_email(request_id):
 
     print('Sending mail')
-    approver, requestor, user, team_name, items_to_approve, sc = get_approval_details(request_id)
+    approver, requestor, user, reason, team_name, items_to_approve, sc = get_approval_details(
+        request_id)
     print(approver)
     approval_url = 'https://' + settings.DOMAIN_NAME + '/access-requests/'
     attention_for = get_username(approver)
@@ -85,6 +87,7 @@ def send_approvals_email(request_id):
             'sc': sc,
             'requester': requestor,
             'user': user,
+            'reason': reason,
             'team': team_name,
             'services': items_to_approve,
             'url': approval_url
@@ -94,7 +97,8 @@ def send_approvals_email(request_id):
 
 def send_end_user_email(request_id):
     print('Sending mail')
-    approver, requestor, user, team_name, items_to_approve, sc = get_approval_details(request_id)
+    approver, requestor, user, reason, team_name, items_to_approve, sc = get_approval_details(
+        request_id)
     ras_url = 'https://' + settings.DOMAIN_NAME + '/request-status/'
     attention_for = get_username(user)
     requestor = get_username(requestor)
@@ -119,14 +123,15 @@ def send_end_user_email(request_id):
 def send_requestor_email(request_id):
     print('Sending mail')
     if Request.objects.get(id=request_id).rejected:
-        status = 'rejected'
-        rejection_reason = 'Your request was rejected because: ' + Request.objects.get(
+        status = 'has been rejected'
+        rejection_reason = ', because: ' + Request.objects.get(
             id=request_id).rejected_reason
     else:
-        status = 'submitted'
-        rejection_reason = ''
+        status = 'is being reviewed'
+        rejection_reason = '.'
 
-    approver, requestor, user, team_name, items_to_approve, sc = get_approval_details(request_id)
+    approver, requestor, user, reason, team_name, items_to_approve, sc = get_approval_details(
+        request_id)
     attention_for = get_username(requestor)
     approver = get_username(approver)
     user = get_username(user)

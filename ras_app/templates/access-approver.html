@@ -3,25 +3,29 @@
 {% block inner_content %}
         <div class ="page-body">
 
-
+         <p></p>
          <body>
-           <p></p>
-        Use the search button to find the name of the person who will approve your access.<br>
-        <p></p>
-         <a class="button" href="/staff-lookup/?{{ request.GET.urlencode }}">
-         Search
-         </a>
+           Please enter in either part or full name of the person who should approve your access, then press search.
          </body>
-
          <p></p>
-         <p>-----------------------------------------------------------------------------------------------------</p>
-         <p></p>
-
-        <form method="post"> 
+        <form method="post">
           {% csrf_token %}
           {{ form }}
-          <p>If you are happy with your choice please press submit.</p>
-          <input type="submit" class="button" value="Submit">
+          <!-- <p>If you are happy with your choice please press submit.</p> -->
+          <input type="submit" class="button" value="Search">
         </form>
       </div>
+
+      {% if staff_list %}
+      <p>--------------------------------------------------------------------------------------------------------------------------</p>
+      <p></p>
+      <p>Click on the link of the name of the person who should approve your access.</p>
+      <ul style="list-style-type:none">
+        {% for staff in staff_list %}
+
+            <!-- <li><a href="{{ referer_path }}?{{ request.GET.urlencode }}&chosen_staff={{ staff }}">{{ staff }}</a></li> -->
+            <li><a href="{{ referer_path }}?{{ request.GET.urlencode }}&approver_name={{ staff }}">{{ staff }}</a></li>
+        {% endfor %}
+      </ul>
+     {% endif %}
 {% endblock %}
