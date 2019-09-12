@@ -28,12 +28,19 @@ def get_teams_list():
     return Teams.objects.values_list('id', 'team_name').order_by('team_name')
 
 
-class AddSelfForm(GOVUKForm):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['team'].choices = get_teams_list()
+# class AddSelfForm(GOVUKForm):
+#     def __init__(self, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         self.fields['team'].choices = get_teams_list()
+#
+#     team = forms.ChoiceField(label='Which team are you in:', choices=[], widget=widgets.Select())
 
-    team = forms.ChoiceField(label='Which team are you in:', choices=[], widget=widgets.Select())
+
+class StaffLookupForm(GOVUKForm):
+    searchname = forms.CharField(
+        label='Name:',
+        max_length=60,
+        widget=widgets.TextInput())
 
 
 class AddNewUserForm(GOVUKForm):
@@ -41,11 +48,8 @@ class AddNewUserForm(GOVUKForm):
         self._chosen_staff = kwargs.pop('chosen_staff', None)
         super().__init__(*args, **kwargs)
         self.fields['team'].choices = get_teams_list()
-
-        if self._chosen_staff is None:
-            self.fields['user'].disabled = True
-        else:
-            self.fields['user'].disabled = False
+        self.fields['user'].disabled = True
+        if self._chosen_staff:
             self.fields['user'].initial = self._chosen_staff
 
     user = forms.CharField(
@@ -59,26 +63,8 @@ class AddNewUserForm(GOVUKForm):
 
 
 class AccessApproverForm(GOVUKForm):
-    def __init__(self, *args, **kwargs):
-
-        self._chosen_staff = kwargs.pop('chosen_staff', None)
-        super().__init__(*args, **kwargs)
-
-        if self._chosen_staff is None:
-            self.fields['approver'].disabled = True
-        else:
-            self.fields['approver'].disabled = False
-            self.fields['approver'].initial = self._chosen_staff
-
     approver = forms.CharField(
-        label='This person has been chosen to approve access:',
-        widget=widgets.TextInput())
-
-
-class StaffLookupForm(GOVUKForm):
-    searchname = forms.CharField(
         label='Name:',
-        max_length=60,
         widget=widgets.TextInput())
 
 
@@ -266,6 +252,6 @@ class ActionRequestsForm(GOVUKForm):
         self.fields['action'].choices = get_action_list(email)
 
     action = forms.MultipleChoiceField(
-        label='Check which is completed',
+        label='Select the tasks which are complete and press submit so the user can be notified.',
         choices=[],
         widget=widgets.CheckboxSelectMultiple)

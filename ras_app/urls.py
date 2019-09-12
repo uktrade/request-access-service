@@ -2,7 +2,7 @@ from django.conf.urls import url
 
 from . import views
 from .views import (
-    services_required, home_page, add_new_user, add_self, access_approver, staff_lookup,
+    services_required, home_page, add_new_user, access_approver, staff_lookup,
     action_requests, reason, additional_info, access_requests, rejected_reason,
     request_status)
 
@@ -14,7 +14,7 @@ urlpatterns = [
     url(r'^$', RedirectView.as_view(pattern_name='home_page')),
     path('home/', login_required(home_page.as_view()), name='home_page'),
     path('auth/', include('authbroker_client.urls', namespace='authbroker')),
-    path('add-self/', add_self.as_view(), name='add_self'),
+    # path('add-self/', add_self.as_view(), name='add_self'),
     path('add-new-user/', add_new_user.as_view(), name='add_new_user'),
     path('access-approver/', access_approver.as_view(), name='access_approver'),
     path('staff-lookup/', staff_lookup.as_view(), name='staff_lookup'),

@@ -1,20 +1,35 @@
-<!-- howdy/templates/next-page.html -->
-<!DOCTYPE html>
-{% extends 'base.html' %}
+<!-- <!DOCTYPE html> -->
 
-{% block content %}
+{% extends 'ras_app_template.html' %}
+
+{% block inner_content %}
         <div class ="page-body">
-        
-     	{% if requests_to_complete %}
-        	{% for current_user in requests_to_complete %}
-        		{{ current_user.user_email }} {{ current_user.service_name }}
+          <p></p>
+          Hi {{ request.user.first_name }} {{ request.user.last_name }}
+          <p></p>
 
-        	{% endfor %}
-     	{% endif %}
-        <form method="post">
-          {% csrf_token %}
-          {{ form }}
-          <input type="submit" value="Submit">
-        </form>
+          <p>Please action the following requests.</p>
+
+          <form method="post">
+            {% csrf_token %}
+            {{ form }}
+            <input type="submit" class="button" value="Submit">
+          </form>
+        </div>
+
+        <p></P>
+        <p>----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------</P>
+        <p></P>
+        <div align="left">
+        <a href="/request-status/">List all your outstanding requests</a>
+        </div>
+
+        <div align="right">
+        <a href="/admin/login">Admin</a>
       </div>
+      <p></P>
+      <div align="right">
+      <a href="/access-requests/">List requests to approve</a>
+      </div>
+
 {% endblock %}

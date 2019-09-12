@@ -2,7 +2,7 @@ import json
 import requests
 
 from .forms import (
-    StartForm, ActionRequestsForm, AddSelfForm, ServicesRequiredForm,
+    StartForm, ActionRequestsForm, ServicesRequiredForm,
     AccessApproverForm, StaffLookupForm, AddNewUserForm,
     AdditionalInfoForm, ReasonForm, AccessRequestsForm, action_rejected_form_factory)
 from .models import (
@@ -47,7 +47,7 @@ class home_page(FormView):
 
     def form_valid(self, form):
         if form.cleaned_data['needs_access'] == 'on_behalf':
-            self.context = {}
+            self.context = {'email': self.request.user.email}
         else:
             self.context = {
                 'email': self.request.user.email,
@@ -56,10 +56,10 @@ class home_page(FormView):
             if User.objects.filter(email=self.request.user.email).exists():
                 self.success_url = reverse_lazy('access_approver')
             else:
-                self.success_url = reverse_lazy('add_self')
+                self.success_url = reverse_lazy('staff_lookup')
             return super().form_valid(form)
 
-        self.success_url = reverse_lazy('add_new_user')
+        self.success_url = reverse_lazy('staff_lookup')
         return super().form_valid(form)
 
     def get_success_url(self):
@@ -76,31 +76,48 @@ def admin_override(request):
     return redirect('/admin/')
 
 
-class add_self(FormView):
-    template_name = 'basic-post.html'
-    form_class = AddSelfForm
+class staff_lookup(FormView):
+    template_name = 'staff-lookup.html'
+    form_class = StaffLookupForm
+    success_url = reverse_lazy('staff_lookup')
 
     def dispatch(self, request, *args, **kwargs):
-        if not reverse('home_page') in self.request.META.get('HTTP_REFERER', ''):
-            if not reverse('add_self') in self.request.META.get('HTTP_REFERER', ''):
-                return redirect('home_page')
+        if not reverse('staff_lookup') in self.request.META.get('HTTP_REFERER', ''):
+            if not reverse('add_new_user') in self.request.META.get('HTTP_REFERER', ''):
+                if not reverse('home_page') in self.request.META.get('HTTP_REFERER', ''):
+                    return redirect('home_page')
         return super().dispatch(request, *args, **kwargs)
 
-    def form_valid(self, form):
-        User.objects.update_or_create(defaults={
-            'first_name': self.request.user.first_name,
-            'last_name': self.request.user.last_name,
-            'team': Teams.objects.get(id=form.cleaned_data['team'])},
-            email=self.request.user.email)
-        self.success_url = reverse_lazy('access_approver')
-        return super().form_valid(form)
+    def get(self, request, *args, **kwargs):
+        self.request.session['_referer'] = request.META.get('HTTP_REFERER', '')
+        return super().get(request, *args, **kwargs)
 
-    def get_success_url(self):
-        url = super().get_success_url()
-        context = {
-            'email': self.request.user.email,
-            'user_email': self.request.user.email}
-        return url + '?' + urlencode(context)
+    def form_valid(self, form):
+        response = requests.get(
+            'https://sso.trade.gov.uk/api/v1/user/search/',
+            params={'autocomplete': form.cleaned_data['searchname']},
+            headers={'Authorization': f'Bearer {settings.SSO_INTROS_TOKEN}'})
+
+        if response.status_code == requests.codes.ok:
+            staff_list = []
+            user_data = response.json()
+            for staff in user_data['results']:
+                if not settings.EMAIL_TEST_ADDRESS:
+                    # This line exclude the person raising the request from being the approveer.
+                    # only runs whilst testing.
+                    if staff['email'] != self.request.user.email:
+                        staff_list.append(staff['first_name'] + ' ' + staff['last_name'])
+                else:
+                    staff_list.append(staff['first_name'] + ' ' + staff['last_name'])
+
+            context = self.get_context_data()
+            context['staff_list'] = staff_list
+            context['referer_path'] = '/add-new-user/'
+
+            return self.render_to_response(context)
+        else:
+            messages.info(self.request, 'This user is not in the staff sso database')
+            return redirect('/staff-lookup/')
 
 
 class add_new_user(FormView):
@@ -116,14 +133,18 @@ class add_new_user(FormView):
 
     def get_form_kwargs(self, **kwargs):
         kwargs = super(add_new_user, self).get_form_kwargs(**kwargs)
-        # Dont like this, but will function for now.
-        try:
-            self.request.GET['chosen_staff']
-        except Exception:
-            print("no value set yet")
-        else:
-            kwargs['chosen_staff'] = self.request.GET['chosen_staff']
+        kwargs['chosen_staff'] = self.request.GET['chosen_staff']
         return kwargs
+
+    # If user is already in DB move on to approver page.
+    def get(self, request, *args, **kwargs):
+        user_email = get_email_address(self.request.GET['chosen_staff'])
+        if User.objects.filter(email=user_email).exists():
+            context = {
+                'email': self.request.user.email,
+                'user_email': user_email}
+            return redirect('/access-approver/?' + urlencode(context))
+        return super().get(request, *args, **kwargs)
 
     def form_valid(self, form):
         self.team = form.cleaned_data['team']
@@ -152,81 +173,29 @@ class add_new_user(FormView):
         url = super().get_success_url()
         context = {
             'email': self.email,
-            'user_email': self.user_email,
-            'team': self.team}
+            'user_email': self.user_email}
         return url + '?' + urlencode(context)
 
 
 class access_approver(FormView):
     template_name = 'access-approver.html'
     form_class = AccessApproverForm
-    success_url = reverse_lazy('services_required')
+    success_url = reverse_lazy('access_approver')
 
     def dispatch(self, request, *args, **kwargs):
         if not reverse('add_new_user') in self.request.META.get('HTTP_REFERER', ''):
             if not reverse('home_page') in self.request.META.get('HTTP_REFERER', ''):
-                if not reverse('add_self') in self.request.META.get('HTTP_REFERER', ''):
-                    if not reverse('access_approver') in self.request.META.get('HTTP_REFERER', ''):
-                        if not reverse('staff_lookup') in self.request.META.get(
-                                'HTTP_REFERER', ''):
-                            return redirect('home_page')
-        return super().dispatch(request, *args, **kwargs)
-
-    def get_form_kwargs(self, **kwargs):
-        kwargs = super(access_approver, self).get_form_kwargs(**kwargs)
-        # Dont like this, but will function for now.
-        try:
-            self.request.GET['chosen_staff']
-        except Exception:
-            print("no value set yet")
-        else:
-            kwargs['chosen_staff'] = self.request.GET['chosen_staff']
-        return kwargs
-
-    def form_valid(self, form):
-        approver = form.cleaned_data['approver']
-        approver_email = get_email_address(approver)
-
-        # Check if approver searched is in local table if not add.
-        if not Approver.objects.filter(email=approver_email).exists():
-            person = get_username(approver_email)
-            Approver.objects.create(
-                email=approver_email,
-                first_name=person.split(None, 1)[0],
-                last_name=person.split(None, 1)[1]
-            )
-
-        self.context = {
-            'email': self.request.GET['email'],
-            'user_email': self.request.GET['user_email'],
-            'approver': approver_email}
-        return super().form_valid(form)
-
-    def get_success_url(self):
-        url = super().get_success_url()
-        return url + '?' + urlencode(self.context)
-
-
-class staff_lookup(FormView):
-    template_name = 'staff-lookup.html'
-    form_class = StaffLookupForm
-    success_url = reverse_lazy('staff_lookup')
-
-    def dispatch(self, request, *args, **kwargs):
-        if not reverse('staff_lookup') in self.request.META.get('HTTP_REFERER', ''):
-            if not reverse('add_new_user') in self.request.META.get('HTTP_REFERER', ''):
                 if not reverse('access_approver') in self.request.META.get('HTTP_REFERER', ''):
-                    return redirect('home_page')
+                    if not reverse('staff_lookup') in self.request.META.get(
+                            'HTTP_REFERER', ''):
+                        return redirect('home_page')
         return super().dispatch(request, *args, **kwargs)
 
-    def get(self, request, *args, **kwargs):
-        self.request.session['_referer'] = request.META.get('HTTP_REFERER', '')
-        return super().get(request, *args, **kwargs)
-
     def form_valid(self, form):
+
         response = requests.get(
             'https://sso.trade.gov.uk/api/v1/user/search/',
-            params={'autocomplete': form.cleaned_data['searchname']},
+            params={'autocomplete': form.cleaned_data['approver']},
             headers={'Authorization': f'Bearer {settings.SSO_INTROS_TOKEN}'})
 
         if response.status_code == requests.codes.ok:
@@ -234,24 +203,21 @@ class staff_lookup(FormView):
             user_data = response.json()
             for staff in user_data['results']:
                 if not settings.EMAIL_TEST_ADDRESS:
-                    # This line exclude the person raising the request from being the approveer.
-                    # only runs whilst testing.
-                    if staff['email'] != self.request.user.email:
+                    # This line exclude the person raising the request or user from being the
+                    # approver, only runs whilst testing.
+                    if staff['email'] not in [
+                            self.request.user.email,
+                            self.request.GET['user_email']]:
                         staff_list.append(staff['first_name'] + ' ' + staff['last_name'])
                 else:
                     staff_list.append(staff['first_name'] + ' ' + staff['last_name'])
 
             context = self.get_context_data()
             context['staff_list'] = staff_list
-
-            if 'add-new-user' in self.request.session['_referer']:
-                context['referer_path'] = '/add-new-user/'
-            else:
-                context['referer_path'] = '/access-approver/'
+            context['referer_path'] = '/services-required/'
             return self.render_to_response(context)
-        else:
-            messages.info(self.request, 'This user is not in the staff sso database')
-            return redirect('/staff-lookup/')
+
+        return super().form_valid(form)
 
 
 def send_mails(request_id):
@@ -283,7 +249,18 @@ class services_required(FormView):
     def form_valid(self, form):
         user_email = self.request.GET['user_email']
         requestor = self.request.GET['email']
-        approver = Approver.objects.get(email=self.request.GET['approver'])
+        approver_name = self.request.GET['approver_name']
+        approver_email = get_email_address(approver_name)
+
+        # Check if approver searched is in local table if not add.
+        if not Approver.objects.filter(email=approver_email).exists():
+            Approver.objects.create(
+                email=approver_email,
+                first_name=approver_name.split(None, 1)[0],
+                last_name=approver_name.split(None, 1)[1]
+            )
+
+        approver = Approver.objects.get(email=approver_email)
 
         request = Request.objects.create(
             requestor=requestor,
@@ -468,7 +445,7 @@ class rejected_reason(View):
 
 
 class action_requests(FormView):
-    template_name = 'home-page.html'
+    template_name = 'action-requests.html'
     form_class = ActionRequestsForm
 
     def get_form_kwargs(self):
