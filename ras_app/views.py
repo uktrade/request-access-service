@@ -97,7 +97,6 @@ class staff_lookup(FormView):
             'https://sso.trade.gov.uk/api/v1/user/search/',
             params={'autocomplete': form.cleaned_data['searchname']},
             headers={'Authorization': f'Bearer {settings.SSO_INTROS_TOKEN}'})
-
         if response.status_code == requests.codes.ok:
             staff_list = []
             user_data = response.json()
@@ -107,8 +106,13 @@ class staff_lookup(FormView):
                     # only runs whilst testing.
                     if staff['email'] != self.request.user.email:
                         staff_list.append(staff['first_name'] + ' ' + staff['last_name'])
+                    else:
+                        messages.info(self.request, 'You can not approve your own request')
                 else:
                     staff_list.append(staff['first_name'] + ' ' + staff['last_name'])
+            if user_data['count'] == 0:
+                messages.info(self.request, 'This user is not in the staff sso database')
+                return redirect(self.request.get_full_path())
 
             context = self.get_context_data()
             context['staff_list'] = staff_list
@@ -116,8 +120,8 @@ class staff_lookup(FormView):
 
             return self.render_to_response(context)
         else:
-            messages.info(self.request, 'This user is not in the staff sso database')
-            return redirect('/staff-lookup/')
+            messages.info(self.request, 'Invalid search')
+            return redirect(self.request.get_full_path())
 
 
 class add_new_user(FormView):
@@ -211,7 +215,10 @@ class access_approver(FormView):
                         staff_list.append(staff['first_name'] + ' ' + staff['last_name'])
                 else:
                     staff_list.append(staff['first_name'] + ' ' + staff['last_name'])
-
+            if user_data['count'] == 0:
+                messages.info(self.request, 'This user is not in the staff sso database')
+                return redirect(self.request.get_full_path())
+                
             context = self.get_context_data()
             context['staff_list'] = staff_list
             context['referer_path'] = '/services-required/'
@@ -406,7 +413,7 @@ class access_requests(FormView):
             self.success_url = reverse_lazy('rejected_reason')
             return super().form_valid(form)
 
-        template = render_to_string("submitted.html")
+        template = render_to_string("completed.html")
         return HttpResponse(template)
 
     def get_success_url(self):
@@ -418,7 +425,7 @@ class access_requests(FormView):
 
 class rejected_reason(View):
     template_name = 'rejected-reason.html'
-    template_name_success = 'submitted.html'
+    template_name_success = 'completed.html'
 
     def dispatch(self, request, *args, **kwargs):
         if not reverse('access_requests') in self.request.META.get('HTTP_REFERER', ''):
@@ -463,7 +470,7 @@ class action_requests(FormView):
                 id__in=services_completed).order_by('request_id')
         send_completed_email(completed_tasks)
 
-        template = render_to_string("submitted.html")
+        template = render_to_string("completed.html")
         return HttpResponse(template)
 
 
