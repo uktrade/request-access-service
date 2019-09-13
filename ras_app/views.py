@@ -81,13 +81,6 @@ class staff_lookup(FormView):
     form_class = StaffLookupForm
     success_url = reverse_lazy('staff_lookup')
 
-    def dispatch(self, request, *args, **kwargs):
-        if not reverse('staff_lookup') in self.request.META.get('HTTP_REFERER', ''):
-            if not reverse('add_new_user') in self.request.META.get('HTTP_REFERER', ''):
-                if not reverse('home_page') in self.request.META.get('HTTP_REFERER', ''):
-                    return redirect('home_page')
-        return super().dispatch(request, *args, **kwargs)
-
     def get(self, request, *args, **kwargs):
         self.request.session['_referer'] = request.META.get('HTTP_REFERER', '')
         return super().get(request, *args, **kwargs)
@@ -127,13 +120,6 @@ class staff_lookup(FormView):
 class add_new_user(FormView):
     template_name = 'add-new-user.html'
     form_class = AddNewUserForm
-
-    def dispatch(self, request, *args, **kwargs):
-        if not reverse('home_page') in self.request.META.get('HTTP_REFERER', ''):
-            if not reverse('add_new_user') in self.request.META.get('HTTP_REFERER', ''):
-                if not reverse('staff_lookup') in self.request.META.get('HTTP_REFERER', ''):
-                    return redirect('home_page')
-        return super().dispatch(request, *args, **kwargs)
 
     def get_form_kwargs(self, **kwargs):
         kwargs = super(add_new_user, self).get_form_kwargs(**kwargs)
@@ -186,15 +172,6 @@ class access_approver(FormView):
     form_class = AccessApproverForm
     success_url = reverse_lazy('access_approver')
 
-    def dispatch(self, request, *args, **kwargs):
-        if not reverse('add_new_user') in self.request.META.get('HTTP_REFERER', ''):
-            if not reverse('home_page') in self.request.META.get('HTTP_REFERER', ''):
-                if not reverse('access_approver') in self.request.META.get('HTTP_REFERER', ''):
-                    if not reverse('staff_lookup') in self.request.META.get(
-                            'HTTP_REFERER', ''):
-                        return redirect('home_page')
-        return super().dispatch(request, *args, **kwargs)
-
     def form_valid(self, form):
 
         response = requests.get(
@@ -218,7 +195,7 @@ class access_approver(FormView):
             if user_data['count'] == 0:
                 messages.info(self.request, 'This user is not in the staff sso database')
                 return redirect(self.request.get_full_path())
-                
+
             context = self.get_context_data()
             context['staff_list'] = staff_list
             context['referer_path'] = '/services-required/'
@@ -241,12 +218,6 @@ class services_required(FormView):
     template_name = 'basic-post.html'
     form_class = ServicesRequiredForm
     success_url = reverse_lazy('reason')
-
-    def dispatch(self, request, *args, **kwargs):
-        if not reverse('access_approver') in self.request.META.get('HTTP_REFERER', ''):
-            if not reverse('services_required') in self.request.META.get('HTTP_REFERER', ''):
-                return redirect('home_page')
-        return super().dispatch(request, *args, **kwargs)
 
     def get_form_kwargs(self, **kwargs):
         kwargs = super(services_required, self).get_form_kwargs(**kwargs)
@@ -356,13 +327,6 @@ class reason(FormView):
     template_name = 'basic-post.html'
     form_class = ReasonForm
 
-    def dispatch(self, request, *args, **kwargs):
-        if not reverse('services_required') in self.request.META.get('HTTP_REFERER', ''):
-            if not reverse('reason') in self.request.META.get('HTTP_REFERER', ''):
-                if not reverse('additional_info') in self.request.META.get('HTTP_REFERER', ''):
-                    return redirect('home_page')
-        return super().dispatch(request, *args, **kwargs)
-
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         self.request_id = self.request.GET['request_id']
@@ -426,12 +390,6 @@ class access_requests(FormView):
 class rejected_reason(View):
     template_name = 'rejected-reason.html'
     template_name_success = 'completed.html'
-
-    def dispatch(self, request, *args, **kwargs):
-        if not reverse('access_requests') in self.request.META.get('HTTP_REFERER', ''):
-            if not reverse('rejected_reason') in self.request.META.get('HTTP_REFERER', ''):
-                return redirect('access_requests')
-        return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
         form_list = action_rejected_form_factory(request.GET['rejected_ids'])
