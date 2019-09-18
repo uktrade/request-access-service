@@ -28,14 +28,6 @@ def get_teams_list():
     return Teams.objects.values_list('id', 'team_name').order_by('team_name')
 
 
-# class AddSelfForm(GOVUKForm):
-#     def __init__(self, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-#         self.fields['team'].choices = get_teams_list()
-#
-#     team = forms.ChoiceField(label='Which team are you in:', choices=[], widget=widgets.Select())
-
-
 class StaffLookupForm(GOVUKForm):
     searchname = forms.CharField(
         label='Name:',

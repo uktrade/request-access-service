@@ -488,3 +488,10 @@ class request_status(generic.ListView):
         return render(request, self.template_name, {
             'formatted_reqs_not_appr': formatted_reqs_not_appr,
             'service_not_activated_lst': service_not_activated_lst})
+
+
+class release(View):
+    template_name = 'release.html'
+
+    def get(self, request, *args, **kwargs):
+        return render(request, self.template_name, {'git_tag': settings.GIT_TAG})
