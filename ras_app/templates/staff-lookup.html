@@ -4,13 +4,7 @@
 {% block inner_content %}
         <div class ="page-body">
 
-          {% if messages %}
-          <ul class="messages">
-            {% for message in messages %}
-              <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
-              {% endfor %}
-            </ul>
-          {% endif %}
+
         <p></p>
         <body>
           Please enter in either part or full name of the person you are requsting access for, then press search.
@@ -24,6 +18,14 @@
         </form>
       </div>
       <p></p>
+      <p></p>
+      {% if messages %}
+      <ul class="messages">
+        {% for message in messages %}
+          <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
 
       {% if staff_list %}
       <p>--------------------------------------------------------------------------------------------------------------------------</p>
