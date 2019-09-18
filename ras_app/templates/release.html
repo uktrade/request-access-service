@@ -1,0 +1,11 @@
+{% extends 'ras_app_template.html' %}
+
+{% block inner_content %}
+        <div class ="page-body">
+            <div align="left">
+                    <p></p>
+                    <p>Release Version: {{ git_tag }}</p>
+                    <p>GIT COMMIT ID: {{ git_commit }}</p>
+            </div>
+      </div>
+{% endblock %}
