@@ -1,4 +1,5 @@
 version: 2
+<<<<<<< HEAD
 jobs:
   build:
     docker:
@@ -6,3 +7,12 @@ jobs:
     steps:
       - checkout
       - run: echo "Initial config"
+=======
+ jobs:
+   build:
+     docker:
+       - image: circleci/python:3.7
+     steps:
+       - checkout
+       - run: echo "Initial config"
+>>>>>>> 45502d64df1415bc476c7f38d2d65ded263adfb7
