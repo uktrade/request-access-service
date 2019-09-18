@@ -494,4 +494,6 @@ class release(View):
     template_name = 'release.html'
 
     def get(self, request, *args, **kwargs):
-        return render(request, self.template_name, {'git_tag': settings.GIT_TAG})
+        return render(request, self.template_name, {
+            'git_tag': settings.GIT_TAG,
+            'git_commit': settings.GIT_COMMIT})
