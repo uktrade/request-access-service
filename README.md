@@ -5,7 +5,7 @@ App for requesting access to our tools
 
 
 ## Dependencies
-Python 3.6
+Python 3.7.3
 DIT Authbroker/staff-sso
 
 ## Setting up a local development environment
