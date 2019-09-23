@@ -19,6 +19,7 @@ django-libsass==0.7
 django==2.2.4
 docopt==0.6.2             # via notifications-python-client
 future==0.17.1            # via notifications-python-client
+gunicorn==19.9.0
 idna==2.7                 # via requests
 libsass==0.15.0
 monotonic==1.5            # via notifications-python-client
@@ -38,3 +39,4 @@ scss==0.8.73
 six==1.12.0               # via django-appconf, libsass
 sqlparse==0.3.0           # via django
 urllib3==1.24.2
+whitenoise==4.1.3
