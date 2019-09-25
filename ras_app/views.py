@@ -29,7 +29,7 @@ from django.urls import reverse_lazy
 def get_email_address(staff_name):
 
     response = requests.get(
-        'https://sso.trade.gov.uk/api/v1/user/search/',
+        settings.AUTHBROKER_URL + '/api/v1/user/search/',
         params={'autocomplete': staff_name},
         headers={'Authorization': f'Bearer {settings.SSO_INTROS_TOKEN}'})
 
@@ -87,7 +87,7 @@ class staff_lookup(FormView):
 
     def form_valid(self, form):
         response = requests.get(
-            'https://sso.trade.gov.uk/api/v1/user/search/',
+            settings.AUTHBROKER_URL + '/api/v1/user/search/',
             params={'autocomplete': form.cleaned_data['searchname']},
             headers={'Authorization': f'Bearer {settings.SSO_INTROS_TOKEN}'})
         if response.status_code == requests.codes.ok:
@@ -173,9 +173,8 @@ class access_approver(FormView):
     success_url = reverse_lazy('access_approver')
 
     def form_valid(self, form):
-
         response = requests.get(
-            'https://sso.trade.gov.uk/api/v1/user/search/',
+            settings.AUTHBROKER_URL + '/api/v1/user/search/',
             params={'autocomplete': form.cleaned_data['approver']},
             headers={'Authorization': f'Bearer {settings.SSO_INTROS_TOKEN}'})
 
