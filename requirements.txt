@@ -16,7 +16,7 @@ django-environ==0.4.5
 django-govuk-template==0.7
 django-jquery==3.1.0
 django-libsass==0.7
-django==2.2.8
+django==2.2.9
 docopt==0.6.2             # via notifications-python-client
 future==0.17.1            # via notifications-python-client
 gunicorn==19.9.0
@@ -30,7 +30,6 @@ pyjwt==1.7.1              # via notifications-python-client
 pyparsing==2.4.2          # via scss
 python-dotenv==0.9.1
 pytz==2019.2              # via django
-raven==6.10.0
 rcssmin==1.0.6            # via django-compressor
 requests-oauthlib==1.2.0
 requests==2.22.0
